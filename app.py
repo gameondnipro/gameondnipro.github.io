@@ -182,13 +182,12 @@ def delete_case(case_id):
     return redirect(url_for('cases_gallery'))
 
 
-# --- РАЗДЕЛ: ЗАДАЧИ (Jira) ---
+
 @app.route('/tasks')
 def tasks_board():
     tasks = db_query("SELECT * FROM tasks ORDER BY created_at DESC")
     return render_template('tasks.html', tasks=tasks)
 
-# --- РАЗДЕЛ: ЗАМЕТКИ ---
 @app.route('/notes')
 def notes_page():
     return render_template('notes.html')
@@ -199,9 +198,7 @@ def global_search():
     
     if len(q) < 2:
         return redirect(request.referrer or '/')
-
-    # 1. СЕРВІС (Таблиця records)
-    # Шукаємо по всьому: Ім'я, Тел, Telegram, Гарантійка, ТТН, ID
+    
     service_sql = """
         SELECT id, client_name as title, 'Сервис' as category, 
                status || ' | ' || claimed_problem as info, 
@@ -217,7 +214,7 @@ def global_search():
     search_param = f'%{q}%'
     service_res = db_query(service_sql, (search_param, search_param, search_param, search_param, search_param, q))
 
-    # 2. БАЗА КОРПУСІВ (Таблиця pc_cases)
+
     cases_sql = """
         SELECT id, name as title, 'Корпуса' as category, 
                price || ' грн | ' || color as info, '/cases' as link 
@@ -226,7 +223,7 @@ def global_search():
     """
     cases_res = db_query(cases_sql, (search_param, search_param))
 
-    # 3. НАКЛАДНІ (Таблиця ttn)
+
     ttn_sql = """
         SELECT id, number as title, 'НП ТТН' as category, 
                client_name || ' | ' || amount || ' грн' as info, '/ttn' as link 
@@ -235,7 +232,7 @@ def global_search():
     """
     ttn_res = db_query(ttn_sql, (search_param, search_param, search_param))
 
-    # 4. ЗАДАЧІ JIRA (Таблиця tasks)
+
     tasks_sql = """
         SELECT id, title, 'Завдання' as category, 
                status || ' | Пріоритет: ' || priority as info, '/tasks' as link 
@@ -244,7 +241,6 @@ def global_search():
     """
     tasks_res = db_query(tasks_sql, (search_param, search_param))
 
-    # Об'єднуємо всі результати
     results = service_res + cases_res + ttn_res + tasks_res
     
     return render_template('search_results.html', results=results, query=q)
@@ -257,17 +253,13 @@ def installment_calc():
         bank = r['bank_name']
         if bank not in rates_map:
             rates_map[bank] = {}
-        # Перетворюємо ключ місяця на рядок для стабільності в JS
         rates_map[bank][str(r['month_count'])] = r['rate']
     
     return render_template('installment.html', rates_json=rates_map)
 
 @app.route('/update_rates', methods=['POST'])
 def update_rates():
-    # Отримуємо всі дані з форми
     data = request.form
-    
-    # Проходимо по ключах форми (вони будуть у форматі bank_month)
     for key, value in data.items():
         if '_' in key:
             bank_name, month = key.split('_')

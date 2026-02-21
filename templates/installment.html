@@ -17,8 +17,7 @@
     .total-highlight {
         font-size: 2.5rem;
         font-weight: 900;
-        /* Замінюємо градієнт на тексті на суцільний колір або градієнт фону */
-        color: #fff; /* Чорний текст для кращого контрасту на жовтому фоні */
+        color: #fff;
         border-radius: 12px;
         padding: 10px 20px;
         display: inline-block;
@@ -146,7 +145,6 @@
 const allRates = {{ rates_json | tojson | safe }};
 let selectedBank = Object.keys(allRates)[0];
 
-// 1. Функція вибору банку
 function selectBank(name) {
     if (!allRates[name]) return;
     selectedBank = name;
@@ -173,7 +171,6 @@ function selectBank(name) {
     calculate();
 }
 
-// 2. Функція розрахунку
 function calculate() {
     const amountInput = document.getElementById('total-amount');
     const monthsSelect = document.getElementById('months-select');
@@ -194,19 +191,19 @@ function calculate() {
     document.getElementById('final-total').innerText = Math.round(total).toLocaleString('uk-UA') + " ₴";
 }
 
-// 3. ФУНКЦІЯ КОПІЮВАННЯ (Яку ми додали)
+
 async function copyCalculator() {
     const area = document.getElementById('capture-area');
     
-    // Візуальний відгук (показуємо, що процес пішов)
+
     const btn = document.querySelector('button[onclick="copyCalculator()"]');
     const originalText = btn.innerHTML;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Створюю фото...';
 
     try {
         const canvas = await html2canvas(area, {
-            backgroundColor: '#121212', // Колір фону твого сайту
-            scale: 2,                  // Якість х2
+            backgroundColor: '#121212', 
+            scale: 2,                  
             useCORS: true
         });
 
@@ -216,7 +213,7 @@ async function copyCalculator() {
                 await navigator.clipboard.write([item]);
                 alert("✅ Фото розрахунку в буфері! Натискай Ctrl+V у Telegram.");
             } catch (err) {
-                // Запасний варіант: якщо браузер блокує буфер через HTTP
+                
                 const imgURL = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.href = imgURL;
@@ -233,7 +230,7 @@ async function copyCalculator() {
     }
 }
 
-// 4. Оновлення часу
+
 function updateTime() {
     const now = new Date();
     const timeStr = now.toLocaleString('uk-UA', { 
