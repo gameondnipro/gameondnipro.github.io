@@ -1,0 +1,433 @@
+import os
+import random
+import sqlite3
+import socket
+import requests
+from io import BytesIO
+from datetime import datetime, timedelta
+from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory, send_file
+from werkzeug.utils import secure_filename
+from database import init_db, db_query, db_execute, UPLOAD_FOLDER, DATE_FORMAT, DB_NAME
+
+app = Flask(__name__)
+app.config.update(
+    SECRET_KEY=os.environ.get('SECRET_KEY', 'super_secret_gmonx_key'),
+    UPLOAD_FOLDER=UPLOAD_FOLDER,
+    PERMANENT_SESSION_LIFETIME=timedelta(days=31),
+    JSON_AS_ASCII=False,
+    SEND_FILE_MAX_AGE_DEFAULT=0
+)
+
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+SECRET_PASSWORD = "838995"
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def generate_ticket_number():
+    return f"TBR-{random.randint(100, 999)}"
+
+def save_photos(record_id, files):
+    saved_paths = []
+    for file in files:
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            timestamp = int(datetime.now().timestamp())
+            new_filename = f"{record_id}_{timestamp}_{filename}"
+            fs_file_path = os.path.join(app.config['UPLOAD_FOLDER'], new_filename)
+            db_file_path = fs_file_path.replace(os.sep, '/')
+            try:
+                file.save(fs_file_path)
+                db_execute("INSERT INTO photos (record_id, file_path) VALUES (?, ?)", (record_id, db_file_path))
+                saved_paths.append(db_file_path)
+            except Exception as e:
+                print(f"Error saving {new_filename}: {e}")
+    return saved_paths
+
+def db_vacuum():
+    try:
+        with sqlite3.connect(DB_NAME) as conn:
+            conn.execute("VACUUM")
+        return True
+    except sqlite3.Error as e:
+        print(f"VACUUM Error: {e}")
+        return False
+
+def get_exchange_rates():
+    try:
+        response = requests.get('https://api.privatbank.ua/p24api/pubinfo?exchange&coursid=5', timeout=5)
+        data = response.json()
+        rates = {}
+        for item in data:
+            if item['ccy'] == 'USD':
+                rates['usd'] = round(float(item['buy']), 2)
+        rates['usdt'] = rates['usd'] + 0.50
+        return rates
+    except:
+        return {'usd': '??', 'usdt': '??'}
+
+@app.context_processor
+def inject_rates():
+    return dict(rates=get_exchange_rates())
+
+@app.route('/settings')
+def settings_page():
+    return render_template('settings.html')
+
+@app.route('/urgent')
+def urgent_orders():
+    orders = db_query("SELECT * FROM urgent_orders ORDER BY deadline ASC")
+    return render_template('urgent.html', orders=orders)
+
+@app.route('/urgent/add', methods=['POST'])
+def add_urgent_order():
+    data = request.form
+    db_execute("""
+        INSERT INTO urgent_orders (client_name, pc_config, deadline, priority, status)
+        VALUES (?, ?, ?, ?, ?)
+    """, (data['client_name'], data['pc_config'], data['deadline'], data['priority'], 'В очереди'))
+    return redirect(url_for('urgent_orders'))
+
+@app.route('/urgent/next_status/<int:order_id>', methods=['POST'])
+def next_status(order_id):
+    stages = ['В очереди', 'Сборка', 'Тестирование', 'Готов к выдаче']
+    order = db_query("SELECT status FROM urgent_orders WHERE id = ?", (order_id,), fetch_one=True)
+    if not order:
+        return {"status": "error"}, 404
+    try:
+        current_index = stages.index(order['status'])
+        if current_index < len(stages) - 1:
+            new_status = stages[current_index + 1]
+            db_execute("UPDATE urgent_orders SET status = ? WHERE id = ?", (new_status, order_id))
+            return {"status": "ok", "new_status": new_status}
+        return {"status": "finished"}
+    except ValueError:
+        return {"status": "error"}, 400
+
+@app.route('/urgent/delete/<int:order_id>')
+def delete_urgent_order(order_id):
+    db_execute("DELETE FROM urgent_orders WHERE id = ?", (order_id,))
+    return redirect(url_for('urgent_orders'))
+
+@app.route('/ttn')
+def ttn_list():
+    items = db_query("SELECT * FROM ttn ORDER BY date DESC")
+    return render_template('ttn.html', items=items)
+
+@app.route('/add_ttn', methods=['POST'])
+def add_ttn():
+    db_execute("INSERT INTO ttn (date, number, client_name, amount, note) VALUES (?, ?, ?, ?, ?)",
+               (datetime.now().strftime('%Y-%m-%d %H:%M'), request.form.get('number'), 
+                request.form.get('client_name'), request.form.get('amount'), request.form.get('note', '')))
+    flash("Запись добавлена!", "success")
+    return redirect(url_for('ttn_list'))
+
+@app.route('/delete_ttn/<int:ttn_id>')
+def delete_ttn(ttn_id):
+    db_execute("DELETE FROM ttn WHERE id = ?", (ttn_id,))
+    flash("Запись удалена!", "warning")
+    return redirect(url_for('ttn_list'))
+
+@app.route('/ttn/edit/<int:ttn_id>', methods=['POST'])
+def edit_ttn(ttn_id):
+    db_execute("UPDATE ttn SET number = ?, client_name = ?, amount = ?, note = ? WHERE id = ?",
+               (request.form.get('number'), request.form.get('client_name'), 
+                request.form.get('amount'), request.form.get('note'), ttn_id))
+    flash("Запись отредактирована!", "success")
+    return redirect(url_for('ttn_list'))
+
+@app.route('/cases')
+def cases_gallery():
+    data = db_query("SELECT * FROM pc_cases ORDER BY id DESC")
+    return render_template('cases.html', cases=data)
+
+@app.route('/add_case', methods=['POST'])
+def add_case():
+    name = request.form.get('name')
+    files = request.files.getlist('photos')
+    filenames = []
+    for file in files:
+        if file and file.filename:
+            fname = secure_filename(f"{name}_{file.filename}")
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+            filenames.append(fname)
+    db_execute("INSERT INTO pc_cases (name, color, form_factor, price, stock_count, photos) VALUES (?, ?, ?, ?, ?, ?)",
+               (name, request.form.get('color'), request.form.get('form_factor'), 
+                request.form.get('price'), request.form.get('stock_count'), ",".join(filenames)))
+    flash("Корпус добавлен!", "success")
+    return redirect(url_for('cases_gallery'))
+
+@app.route('/delete_case/<int:case_id>')
+def delete_case(case_id):
+    case = db_query("SELECT photos FROM pc_cases WHERE id = ?", (case_id,), fetch_one=True)
+    if case and case['photos']:
+        for photo in case['photos'].split(','):
+            fpath = os.path.join(app.config['UPLOAD_FOLDER'], photo)
+            if os.path.exists(fpath): os.remove(fpath)
+    db_execute("DELETE FROM pc_cases WHERE id = ?", (case_id,))
+    flash("Корпус удален!", "danger")
+    return redirect(url_for('cases_gallery'))
+
+@app.route('/tasks')
+def tasks_board():
+    tasks = db_query("SELECT * FROM tasks ORDER BY created_at DESC")
+    return render_template('tasks.html', tasks=tasks)
+
+@app.route('/notes')
+def notes_page():
+    return render_template('notes.html')
+
+@app.route('/search')
+def global_search():
+    q = request.args.get('q', '').strip()
+    if len(q) < 2: return redirect(request.referrer or '/')
+    p = f'%{q}%'
+    results = []
+    queries = [
+        ("SELECT id, client_name as title, 'Сервис' as cat, status || ' | ' || claimed_problem, '/service/record/' || id FROM records WHERE client_name LIKE ? OR client_phone LIKE ? OR client_telegram LIKE ? OR warranty_ticket_number LIKE ? OR ttn_number LIKE ? OR id = ?", (p, p, p, p, p, q)),
+        ("SELECT id, name as title, 'Корпуса' as cat, price || ' грн | ' || color, '/cases' FROM pc_cases WHERE name LIKE ? OR color LIKE ?", (p, p)),
+        ("SELECT id, number as title, 'НП ТТН' as cat, client_name || ' | ' || amount || ' грн', '/ttn' FROM ttn WHERE number LIKE ? OR client_name LIKE ? OR note LIKE ?", (p, p, p)),
+        ("SELECT id, title, 'Завдання' as cat, status || ' | Пріоритет: ' || priority, '/tasks' FROM tasks WHERE title LIKE ? OR description LIKE ?", (p, p))
+    ]
+    for sql, params in queries:
+        res = db_query(sql, params)
+        for r in res:
+            results.append({'id': r[0], 'title': r[1], 'category': r[2], 'info': r[3], 'link': r[4]})
+    return render_template('search_results.html', results=results, query=q)
+
+@app.route('/installment')
+def installment_calc():
+    raw_rates = db_query("SELECT * FROM bank_rates")
+    rates_map = {}
+    for r in raw_rates:
+        rates_map.setdefault(r['bank_name'], {})[str(r['month_count'])] = r['rate']
+    return render_template('installment.html', rates_json=rates_map)
+
+@app.route('/update_rates', methods=['POST'])
+def update_rates():
+    for key, val in request.form.items():
+        if '_' in key:
+            try:
+                bank, month = key.split('_')
+                db_execute("UPDATE bank_rates SET rate = ? WHERE bank_name = ? AND month_count = ?", (float(val), bank, int(month)))
+            except ValueError: continue
+    flash("Ставки обновлены!", "success")
+    return redirect(url_for('installment_calc'))
+
+@app.route('/configurator')
+def configurator():
+    components = db_query("SELECT * FROM pc_components WHERE is_active = 1")
+    return render_template('configurator.html', components=components)
+
+@app.route('/configurator/settings', methods=['POST'])
+def save_component():
+    d = request.form
+    db_execute("INSERT INTO pc_components (category, name, price, socket, ram_type) VALUES (?, ?, ?, ?, ?)",
+               (d['category'], d['name'], d['price'], d['socket'], d['ram_type']))
+    return redirect(url_for('configurator'))
+
+@app.route('/configurator/delete/<int:comp_id>')
+def delete_component(comp_id):
+    db_execute("DELETE FROM pc_components WHERE id = ?", (comp_id,))
+    return redirect(url_for('configurator'))
+
+@app.route('/configurator/update_price/<int:comp_id>/<int:new_price>', methods=['POST'])
+def update_price(comp_id, new_price):
+    db_execute("UPDATE pc_components SET price = ? WHERE id = ?", (new_price, comp_id))
+    return {"status": "ok"}
+
+@app.route('/configurator/print_page')
+def print_page():
+    return render_template('print_layout.html')
+
+@app.route('/speeches')
+def speeches_list():
+    all_s = db_query("SELECT * FROM speeches ORDER BY category, position")
+    cat = {}
+    for s in all_s: cat.setdefault(s['category'], []).append(s)
+    return render_template('speeches.html', speeches=cat)
+
+@app.route('/speeches/save', methods=['POST'])
+def save_speech():
+    d = request.form
+    db_execute("INSERT INTO speeches (category, title, content, position) VALUES (?, ?, ?, ?)",
+               (d['category'], d['title'], d['content'], d['position'] or 0))
+    return redirect(url_for('speeches_list'))
+
+@app.route('/speeches/update/<int:speech_id>', methods=['POST'])
+def update_speech(speech_id):
+    d = request.form
+    db_execute("UPDATE speeches SET category=?, title=?, content=?, position=? WHERE id=?",
+               (d['category'], d['title'], d['content'], d['position'], speech_id))
+    return redirect(url_for('speeches_list'))
+
+@app.route('/speeches/delete/<int:speech_id>')
+def delete_speech(speech_id):
+    db_execute("DELETE FROM speeches WHERE id = ?", (speech_id,))
+    return redirect(url_for('speeches_list'))
+
+@app.route('/speeches/click/<int:speech_id>', methods=['POST'])
+def register_click(speech_id):
+    db_execute("UPDATE speeches SET usage_count = usage_count + 1 WHERE id = ?", (speech_id,))
+    return {"status": "ok"}
+
+@app.route('/settings/export')
+def export_database():
+    if request.args.get('password') != SECRET_PASSWORD:
+        flash("Неверный пароль.", 'danger')
+        return redirect(url_for('settings_page'))
+    return send_file(DB_NAME, as_attachment=True, download_name=f'backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.db')
+
+@app.route('/settings/import', methods=['POST'])
+def import_database():
+    if request.form.get('password') != SECRET_PASSWORD:
+        flash("Неверный пароль.", 'danger')
+        return redirect(url_for('settings_page'))
+    file = request.files.get('file')
+    if file and file.filename.endswith('.db'):
+        file.save(os.path.join(os.getcwd(), DB_NAME))
+        flash("БД восстановлена!", 'success')
+    return redirect(url_for('settings_page'))
+
+@app.route('/settings/reset_id_sequence', methods=['POST'])
+def reset_id_sequence():
+    if request.form.get('password') == SECRET_PASSWORD:
+        db_execute("DELETE FROM records")
+        db_execute("DELETE FROM sqlite_sequence WHERE name='records'")
+        flash("ID сброшены!", 'success')
+    return redirect(url_for('settings_page'))
+
+@app.route('/settings/optimize_db', methods=['POST'])
+def optimize_database():
+    if db_vacuum(): flash("Оптимизировано!", 'success')
+    return redirect(url_for('settings_page'))
+
+@app.route('/quick_add', methods=['POST'])
+def quick_add_record():
+    name, prob = request.form.get('client_name'), request.form.get('claimed_problem')
+    if not name or not prob: return redirect(url_for('dashboard'))
+    ticket = generate_ticket_number()
+    rid = db_execute("INSERT INTO records (request_date, client_name, claimed_problem, warranty_ticket_number, status) VALUES (?, ?, ?, ?, ?)",
+                     (datetime.now().strftime('%Y-%m-%d'), name, prob, ticket, 'Принят'))
+    return redirect(url_for('view_record', record_id=rid))
+
+@app.route('/')
+@app.route('/hub')
+def hub():
+    return render_template('hub.html')
+
+@app.route('/service')
+def service_list():
+    s, o, q = request.args.get('sort', 'id'), request.args.get('order', 'desc'), request.args.get('q', '').strip()
+    if s not in ['id', 'request_date', 'client_name', 'status']: s = 'id'
+    if o.lower() not in ['asc', 'desc']: o = 'desc'
+    
+    where, params = "", []
+    if q:
+        where = "WHERE LOWER(client_name) LIKE ? OR ttn_number LIKE ? OR LOWER(claimed_problem) LIKE ?"
+        params = [f'%{q.lower()}%', f'%{q}%', f'%{q.lower()}%']
+    
+    records = db_query(f"SELECT * FROM records {where} ORDER BY {s} {o}", params)
+    for r in records:
+        photo = db_query("SELECT file_path FROM photos WHERE record_id = ? LIMIT 1", (r['id'],), fetch_one=True)
+        r['first_photo_path'] = photo['file_path'] if photo else None
+    return render_template('list.html', records=records, current_sort=s, current_order=o, new_order='asc' if o=='desc' else 'desc', search_query=q, statuses=['Принят', 'В работе', 'Исполнено', 'Обработан', 'Отказ'])
+
+@app.route('/dashboard')
+def dashboard():
+    counts = db_query("SELECT status, COUNT(id) as count FROM records GROUP BY status")
+    metrics = {i['status']: i['count'] for i in counts}
+    recent = db_query("SELECT * FROM records ORDER BY id DESC LIMIT 5")
+    stale = db_query("SELECT * FROM records WHERE status = 'В работе' AND request_date < ?", ((datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d'),))
+    return render_template('dashboard.html', metrics=metrics, total_records=sum(metrics.values()), recent_records=recent, stale_records=stale, statuses=['Принят', 'В работе', 'Исполнено', 'Обработан', 'Отказ'])
+
+@app.route('/add', methods=['GET', 'POST'])
+def add_record():
+    if request.method == 'POST':
+        f = request.form
+        rid = db_execute("INSERT INTO records (request_date, issue_date, ttn_number, client_name, client_phone, client_telegram, warranty_ticket_number, claimed_problem, diagnosed_problem, replaced_parts, status) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                         (f['request_date'], f.get('issue_date'), f.get('ttn_number'), f['client_name'], f.get('client_phone'), f.get('client_telegram'), f.get('warranty_ticket_number'), f.get('claimed_problem'), f.get('diagnosed_problem'), f.get('replaced_parts'), f.get('status', 'Принят')))
+        save_photos(rid, request.files.getlist('photos'))
+        return redirect(url_for('service_list'))
+    return render_template('add_record.html', default_request_date=datetime.now().strftime(DATE_FORMAT), statuses=['Принят', 'В работе', 'Исполнено', 'Обработан', 'Отказ'])
+
+@app.route('/add_comment/<int:record_id>', methods=['POST'])
+def add_comment(record_id):
+    txt = request.form.get('comment_text')
+    if txt: db_execute("INSERT INTO comments (record_id, comment_text, created_at) VALUES (?, ?, ?)", (record_id, txt, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+    return redirect(url_for('view_record', record_id=record_id))
+
+@app.route('/service/record/<int:record_id>')
+def view_record(record_id):
+    rec = db_query("SELECT * FROM records WHERE id = ?", (record_id,), fetch_one=True)
+    if not rec: return redirect(url_for('service_list'))
+    return render_template('detail_record.html', record=rec, photos=db_query("SELECT * FROM photos WHERE record_id = ?", (record_id,)), comments=db_query("SELECT * FROM comments WHERE record_id = ? ORDER BY created_at DESC", (record_id,)), statuses=['Принят', 'В работе', 'Исполнено', 'Обработан', 'Отказ'])
+
+@app.route('/report/<int:record_id>')
+def print_report(record_id):
+    rec = db_query("SELECT * FROM records WHERE id = ?", (record_id,), fetch_one=True)
+    return render_template('service_report.html', record=rec)
+
+@app.route('/edit/<int:record_id>', methods=['GET', 'POST'])
+def edit_record(record_id):
+    if request.method == 'POST':
+        f = request.form
+        db_execute("UPDATE records SET request_date=?, issue_date=?, ttn_number=?, client_name=?, client_phone=?, client_telegram=?, warranty_ticket_number=?, claimed_problem=?, diagnosed_problem=?, replaced_parts=?, status=? WHERE id=?",
+                   (f['request_date'], f.get('issue_date'), f.get('ttn_number'), f['client_name'], f.get('client_phone'), f.get('client_telegram'), f.get('warranty_ticket_number'), f.get('claimed_problem'), f.get('diagnosed_problem'), f.get('replaced_parts'), f.get('status'), record_id))
+        save_photos(record_id, request.files.getlist('photos'))
+        return redirect(url_for('view_record', record_id=record_id))
+    rec = db_query("SELECT * FROM records WHERE id = ?", (record_id,), fetch_one=True)
+    return render_template('edit_record.html', record=rec, photos=db_query("SELECT * FROM photos WHERE record_id = ?", (record_id,)), statuses=['Принят', 'В работе', 'Исполнено', 'Обработан', 'Отказ'])
+
+@app.route('/delete/<int:record_id>')
+def delete_record(record_id):
+    photos = db_query("SELECT file_path FROM photos WHERE record_id = ?", (record_id,))
+    for p in photos:
+        fpath = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(p['file_path']))
+        if os.path.exists(fpath): os.remove(fpath)
+    db_execute("DELETE FROM photos WHERE record_id = ?", (record_id,))
+    db_execute("DELETE FROM records WHERE id = ?", (record_id,))
+    return redirect(url_for('service_list'))
+
+@app.route('/uploads/<path:filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+@app.route('/faq')
+def faq_list():
+    q = request.args.get('faq_q', '').strip()
+    sql, params = "SELECT * FROM faq ORDER BY id DESC", ()
+    if q:
+        sql = "SELECT * FROM faq WHERE LOWER(title) LIKE ? OR LOWER(content) LIKE ? ORDER BY id DESC"
+        params = (f'%{q.lower()}%', f'%{q.lower()}%')
+    return render_template('faq_list.html', faqs=db_query(sql, params))
+
+@app.route('/faq/add', methods=['POST'])
+def faq_add():
+    db_execute("INSERT INTO faq (title, content) VALUES (?, ?)", (request.form.get('title'), request.form.get('content')))
+    return redirect(url_for('faq_list'))
+
+@app.route('/faq/delete/<int:faq_id>', methods=['POST'])
+def faq_delete(faq_id):
+    db_execute("DELETE FROM faq WHERE id = ?", (faq_id,))
+    return redirect(url_for('faq_list'))
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('404.html'), 404
+
+if __name__ == '__main__':
+    local_ip = '127.0.0.1'
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('10.255.255.255', 1))
+        local_ip = s.getsockname()[0]
+        s.close()
+    except: pass
+    
+    print(f"\n🚀 Gmonx Hub запущен!")
+    print(f"   (LOCAL): https://127.0.0.1:8080")
+    print(f"   (LAN):   https://{local_ip}:8080\n")
+    
+    app.run(host='0.0.0.0', port=8080, debug=False, threaded=True, ssl_context='adhoc')

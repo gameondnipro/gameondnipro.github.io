@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory
 from werkzeug.utils import secure_filename
+from werkzeug.serving import run_simple
 from flask import send_file
 import os
 import random
@@ -10,7 +11,7 @@ import requests
 from io import BytesIO
 from datetime import datetime, timedelta
 from database import init_db, db_query, db_execute, UPLOAD_FOLDER, DATE_FORMAT, DB_NAME
-
+from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your_super_secret_key_default') 
@@ -88,6 +89,60 @@ def inject_rates():
 @app.route('/settings')
 def settings_page():
     return render_template('settings.html')
+
+
+# 1. Страница со списком заказов
+@app.route('/urgent')
+def urgent_orders():
+
+    orders = db_query("SELECT * FROM urgent_orders ORDER BY deadline ASC")
+    return render_template('urgent.html', orders=orders)
+
+# 2. Добавление нового заказа
+@app.route('/urgent/add', methods=['POST'])
+def add_urgent_order():
+    data = request.form
+
+    db_execute("""
+        INSERT INTO urgent_orders (client_name, pc_config, deadline, priority, status)
+        VALUES (?, ?, ?, ?, ?)
+    """, (
+        data['client_name'], 
+        data['pc_config'], 
+        data['deadline'], 
+        data['priority'], 
+        'В очереди'
+    ))
+    return redirect(url_for('urgent_orders'))
+
+# 3. Кнопка "Ракета" (быстрая смена статуса)
+@app.route('/urgent/next_status/<int:order_id>', methods=['POST'])
+def next_status(order_id):
+    stages = ['В очереди', 'Сборка', 'Тестирование', 'Готов к выдаче']
+    
+    order = db_query("SELECT status FROM urgent_orders WHERE id = ?", (order_id,), one=True)
+    if not order:
+        return {"status": "error"}, 404
+        
+    current_status = order['status']
+    
+    try:
+        current_index = stages.index(current_status)
+        if current_index < len(stages) - 1:
+            new_status = stages[current_index + 1]
+            db_execute("UPDATE urgent_orders SET status = ? WHERE id = ?", (new_status, order_id))
+            return {"status": "ok", "new_status": new_status}
+        else:
+            return {"status": "finished"}
+    except ValueError:
+        return {"status": "error"}, 400
+
+# 4. Удаление заказа (когда забрали)
+@app.route('/urgent/delete/<int:order_id>')
+def delete_urgent_order(order_id):
+    db_execute("DELETE FROM urgent_orders WHERE id = ?", (order_id,))
+    return redirect(url_for('urgent_orders'))
+
 
 
 # --- РАЗДЕЛ: ТТН ---
@@ -787,6 +842,9 @@ def delete_record(record_id):
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
+
+#Faq
+
 @app.route('/faq')
 def faq_list():
     search_term = request.args.get('faq_q', '').strip()
@@ -807,7 +865,7 @@ def faq_add():
     content = request.form.get('content')
 
     if not title or not content:
-        flash("Заголовок и содержание FAQ не могут быть пустыми.", 'warning')
+        flash("Поля пустые.", 'warning')
         return redirect(url_for('faq_list'))
 
     db_execute("INSERT INTO faq (title, content) VALUES (?, ?)", (title, content))
@@ -816,7 +874,6 @@ def faq_add():
 
 @app.route('/faq/delete/<int:faq_id>', methods=['POST'])
 def faq_delete(faq_id):
-    """Удаляет FAQ-запись."""
     db_execute("DELETE FROM faq WHERE id = ?", (faq_id,))
     flash(f"FAQ-запись №{faq_id} успешно удалена.", 'success')
     return redirect(url_for('faq_list'))
@@ -841,7 +898,7 @@ def advanced_reports():
             where_clauses.append("request_date <= ?")
             query_params.append(end_date_str)
     except ValueError:
-        flash("Невірний формат дати. Використовуйте РРРР-ММ-ДД.", 'danger')
+        flash("Неверный формат даты. Правильный: ГГГГ-ММ-ДД.", 'danger')
         start_date_str = end_date_str = None
         where_clauses = []
         query_params = []
@@ -896,7 +953,7 @@ def view_audit():
 def page_not_found(e):
     return render_template('404.html'), 404
 
-if __name__ == '__main__':
+"""if __name__ == '__main__':
     
     local_ip = '127.0.0.1'#Значение по умолчанию
     try:
@@ -913,7 +970,23 @@ if __name__ == '__main__':
     print(f"\nWeb server loaded on:")
     print(f"   (LOCAL HOST): http://127.0.0.1:5000")
     print(f"   (FOR ALL CLIENTS ON LAN NETWORK): http://{local_ip}:5000\n")
-    
+"""
     # host='0.0.0.0' 
-    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False) 
+    #app.run(host='0.0.0.0', port=8080, debug=True, use_reloader=False, threaded=True, use_debugger=True , ssl_context='adhoc')
+    
+app.config.update(
+SECRET_KEY='super_secret_gmonx_key',
+PERMANENT_SESSION_LIFETIME=timedelta(days=31),
+JSON_AS_ASCII=False,
+SEND_FILE_MAX_AGE_DEFAULT=0  
+)
+
+if __name__ == '__main__':
+    app.run(
+        host='0.0.0.0', 
+        port=8080, 
+        debug=False, 
+        threaded=True,  
+        ssl_context='adhoc'
+    )
     # use_reloader=False

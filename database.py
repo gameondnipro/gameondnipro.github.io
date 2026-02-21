@@ -161,6 +161,16 @@ def init_db():
     position INTEGER DEFAULT 0,
     usage_count INTEGER DEFAULT 0
     )''')
+    
+    cursor.execute('''CREATE TABLE IF NOT EXISTS urgent_orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_name TEXT NOT NULL,
+    pc_config TEXT NOT NULL,
+    deadline DATETIME NOT NULL,
+    status TEXT DEFAULT 'В черзі', -- 'В черзі', 'Збирається', 'Тестується', 'Готово'
+    priority TEXT DEFAULT 'Нормальний', -- 'Терміново', 'Критично', 'Вчора'
+    manager_note TEXT
+    )''')
     conn.commit()
     conn.close()
 

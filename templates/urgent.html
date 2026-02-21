@@ -1,0 +1,184 @@
+{% extends "_base.html" %}
+{% block content %}
+<style>
+    .urgent-card {
+        background: rgba(20, 20, 20, 0.8);
+        border-left: 5px solid #0d6efd;
+        border-radius: 8px;
+        transition: 0.3s;
+    }
+    .priority-critical { border-left-color: #dc3545; box-shadow: 0 0 15px rgba(220, 53, 69, 0.2); }
+    .priority-urgent { border-left-color: #fd7e14; }
+    
+    .deadline-timer {
+        font-family: 'Courier New', Courier, monospace;
+        font-weight: bold;
+        color: #ffc107;
+    }
+</style>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-white"><i class="bi bi-alarm text-danger"></i> СРОЧНЯКИ</h2>
+        <button class="btn btn-danger fw-bold" data-bs-toggle="modal" data-bs-target="#addOrderModal">
+            + ЗАпись
+        </button>
+    </div>
+
+    <div class="row g-4" id="orders-container">
+        {% for order in orders %}
+        <div class="col-12 col-md-6 col-xl-4 order-item" data-deadline="{{ order.deadline }}">
+<div class="urgent-card p-3 h-100 priority-{{ order.priority | lower }}" id="card-{{ order.id }}">
+    <div class="d-flex justify-content-between mb-2">
+        <span class="badge bg-secondary" id="status-badge-{{ order.id }}">{{ order.status }}</span>
+        <span class="deadline-timer" id="timer-{{ order.id }}">--:--:--</span>
+    </div>
+    
+    <h5 class="text-info mb-1">{{ order.client_name }}</h5>
+    <input type="hidden" id="config-{{ order.id }}" value="{{ order.pc_config }}">
+    <input type="hidden" id="priority-{{ order.id }}" value="{{ order.priority }}">
+    <input type="hidden" id="deadline-{{ order.id }}" value="{{ order.deadline }}">
+    
+    <p class="text-light small mb-2">{{ order.pc_config }}</p>
+    
+    <div class="d-flex justify-content-between align-items-center mt-3">
+        <small class="text-muted">Дедлайн: {{ order.deadline }}</small>
+        <div class="btn-group">
+            <button class="btn btn-sm btn-outline-info" onclick="nextStatus({{ order.id }})" title="Наступний етап">
+                🚀
+            </button>
+            <button class="btn btn-sm btn-outline-warning" 
+                    onclick="editUrgentOrder({{ order.id }}, '{{ order.client_name }}')" title="Редагувати">
+                <i class="bi bi-pencil"></i>
+            </button>
+        </div>
+    </div>
+</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+<div class="modal fade" id="addOrderModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white border-danger shadow-lg">
+            <form action="/urgent/add" method="POST">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title text-danger"><i class="bi bi-fire"></i> Срочный дедлайн</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="small text-muted">Имя</label>
+                        <input type="text" name="client_name" class="form-control bg-black text-white border-secondary" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="small text-muted">Описание</label>
+                        <textarea name="pc_config" class="form-control bg-black text-white border-secondary" rows="2" placeholder="Сбьорка описание и т.п." required></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-7 mb-3">
+                            <label class="small text-muted">Когда нужно отдать?</label>
+                            <input type="datetime-local" name="deadline" class="form-control bg-black text-white border-secondary" required>
+                        </div>
+                        <div class="col-md-5 mb-3">
+                            <label class="small text-muted">Приоритет</label>
+                            <select name="priority" class="form-select bg-black text-white border-secondary">
+                                <option value="Normal">Обычный</option>
+                                <option value="Urgent">Срочно</option>
+                                <option value="Critical">🔥 Горит!</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="submit" class="btn btn-danger w-100 fw-bold">ПОСТАВИТЬ В ГРАФИК</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<audio id="alertSound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    if (Notification.permission !== "granted") {
+        Notification.requestPermission();
+    }
+});
+
+let flashInterval = null;
+const originalTitle = document.title;
+
+function startFlashingTitle(message) {
+    if (flashInterval) return;
+    flashInterval = setInterval(() => {
+        document.title = document.title === message ? originalTitle : message;
+    }, 1000);
+}
+
+function stopFlashingTitle() {
+    clearInterval(flashInterval);
+    flashInterval = null;
+    document.title = originalTitle;
+}
+window.onfocus = stopFlashingTitle;
+function showOSNotification(clientName) {
+    if (Notification.permission === "granted") {
+        new Notification("⚠️ КРИТИЧЕСКИЙ ДЕДЛАЙН", {
+            body: `Заказ для ${clientName} нужно отдать через 15 минут!`,
+            icon: "/static/img/logo.jpg"
+        });
+    }
+}
+</script>
+<script>
+const notifiedOrders = new Set();
+
+function updateTimers() {
+    document.querySelectorAll('.order-item').forEach(item => {
+        const deadline = new Date(item.dataset.deadline).getTime();
+        const now = new Date().getTime();
+        const distance = deadline - now;
+        const timerId = item.querySelector('.deadline-timer').id;
+        const clientName = item.querySelector('h5').innerText;
+        const orderId = timerId.split('-')[1];
+        if (distance < 0) {
+            document.getElementById(timerId).innerHTML = "ПРОСРОЧЕНО";
+            document.getElementById(timerId).classList.add('text-danger');
+            item.querySelector('.urgent-card').style.boxShadow = "0 0 20px rgba(220, 53, 69, 0.5)";
+        } else {
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+            
+            document.getElementById(timerId).innerHTML = `${hours}ч ${minutes}м ${seconds}с`;
+            if (distance <= 900000 && !notifiedOrders.has(orderId)) {
+                document.getElementById('alertSound').play().catch(e => console.log("Нужен клик по странице для звука"));
+                startFlashingTitle(`⚠️ ${clientName} !!!`);
+                showOSNotification(clientName);
+                
+                item.querySelector('.urgent-card').classList.add('priority-critical');
+                
+                notifiedOrders.add(orderId);
+            }
+        }
+    });
+}
+
+// Запуск цикла
+setInterval(updateTimers, 1000);
+async function nextStatus(id) {
+    const response = await fetch(`/urgent/next_status/${id}`, { method: 'POST' });
+    const result = await response.json();
+    
+    if (result.status === 'ok') {
+        location.reload(); 
+    } else if (result.status === 'finished') {
+        if(confirm("Заказ готов! Убрать его из списка срочных?")) {
+            window.location.href = `/urgent/delete/${id}`;
+        }
+    }
+}
+</script>
+{% endblock %}
