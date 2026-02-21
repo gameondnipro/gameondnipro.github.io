@@ -1,0 +1,161 @@
+{% extends "_base.html" %}
+
+{% block title %}Настройки{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Настройки</h1>
+
+<div class="row">
+
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <p>Сохраните полную копию базы данных (файл <code>.db</code>) на свой компьютер. Это необходимо для
+                    резервного копирования данных.</p>
+
+                <button type="button" onclick="handleExport('{{ url_for('export_database') }}')"
+                    class="btn btn-success mt-3">
+                    <i class="bi bi-download"></i> Скачать Бэкап
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('import_database') }}" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="dbFile" class="form-label">Выберите файл БД (.db)</label>
+                        <input class="form-control" type="file" id="dbFile" name="file" accept=".db" required>
+                        <input type="hidden" id="importPassword" name="password" value="">
+                    </div>
+                    <button type="submit" onclick="return handleImportSubmission(this.form)"
+                        class="btn btn-danger mt-3">
+                        <i class="bi bi-upload"></i> Загрузить и Восстановить
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<h2 class="mt-4">Общие Настройки Приложения</h2>
+<div class="card p-3 mb-4">
+    <p>Управление настройками темы и кэшем браузера.</p>
+    
+    <button type="button" 
+            onclick="resetTheme()" 
+            class="btn btn-sm btn-outline-warning w-50 w-md-25">
+        <i class="bi bi-arrow-counterclockwise"></i> Сбросить настройки темы
+    </button>
+</div>
+<h2 class="mt-5">Обслуживание Базы Данных</h2>
+<p class="lead">Управляйте структурой и нумерацией ID (требует пароля).</p>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-danger text-white">
+                Сброс Нумерации ID (Стереть ВСЕ данные!)
+            </div>
+            <div class="card-body">
+                <p class="text-danger fw-bold">ОПАСНО! Эта операция удалит *все* записи и сбросит счетчик ID на 1. Используйте только для тестирования или начала нового цикла.</p>
+                
+                <form>
+                    <input type="hidden" id="resetIdPassword" name="password" value="">
+                    <button type="submit" class="btn btn-danger mt-3">
+                        <i class="bi bi-trash"></i> Удалить ВСЕ и Сбросить ID
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-warning text-black">
+                Оптимизация файла БД (VACUUM)
+            </div>
+            <div class="card-body">
+                <p>Перестраивает базу данных, чтобы освободить неиспользуемое место. Рекомендуется после удаления большого количества записей.</p>
+                
+                <form method="POST" action="{{ url_for('optimize_database') }}">
+                    <button type="submit" class="btn btn-warning mt-3">
+                        <i class="bi bi-fan"></i> Оптимизировать
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+    function handleExport(exportUrl) {
+        const password = prompt("Введите пароль для экспорта базы данных:");
+
+        if (password === null) {
+            return false;
+        }
+
+        if (password.trim() === "") {
+            alert("Пароль не может быть пустым.");
+            return false;
+        }
+
+        window.location.href = exportUrl + "?password=" + encodeURIComponent(password);
+        return false;
+    }
+
+
+    function handleImportSubmission(form) {
+        const fileInput = document.getElementById('dbFile');
+        if (!fileInput.value) {
+            alert("Пожалуйста, выберите файл базы данных (.db) для импорта.");
+            return false;
+        }
+
+        if (!confirm('ВНИМАНИЕ: Вы уверены? Текущая база данных будет полностью заменена!')) {
+            return false;
+        }
+
+        const password = prompt("Введите пароль для импорта базы данных:");
+
+        if (password === null) {
+            return false;
+        }
+
+        if (password.trim() === "") {
+            alert("Пароль не может быть пустым.");
+            return false;
+        }
+        document.getElementById('importPassword').value = password;
+        return true;
+    }
+    function resetTheme() {
+        if (confirm("Вы уверены, что хотите сбросить настройки темы и перезагрузить страницу?")) {
+            localStorage.removeItem('theme');
+            document.querySelector('html').setAttribute('data-bs-theme', 'light');
+            window.location.reload(); 
+        }
+    }
+    function handleResetIdSubmission(form) {
+    if (!confirm('КРАЙНЕ ОПАСНО! Вы уверены, что хотите удалить ВСЕ данные и начать нумерацию ID с 1?')) {
+        return false;
+    }
+    
+    const password = prompt("Введите пароль для подтверждения полного сброса:");
+    
+    if (password) {
+        document.getElementById('resetIdPassword').value = password;
+        return true; 
+    } else {
+        alert("Операция отменена. Пароль не введен.");
+        return false;
+    }
+}
+</script>
+{% endblock %}

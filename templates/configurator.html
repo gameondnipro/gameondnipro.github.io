@@ -1,0 +1,333 @@
+{% extends "_base.html" %}
+{% block title %}Просчёт ПК {% endblock %}
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-white"><i class="bi bi-cpu me-2 text-info"></i>Умный Конфигуратор</h2>
+        <div>
+            <input type="number" id="markup-percent" class="form-control d-inline-block w-auto bg-dark text-warning border-warning" value="10" oninput="calculateTotal()">
+            <span class="text-muted ms-2">% наценка</span>
+            <button class="btn btn-outline-secondary ms-3" data-bs-toggle="modal" data-bs-target="#settingsModal">
+                <i class="bi bi-gear"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card bg-dark border-secondary p-4 shadow-lg">
+                {% set categories = [
+                    ('cpu', 'Процессор'), ('motherboard', 'Мат. плата'), ('ram', 'ОЗУ'),
+                    ('gpu', 'Видеокарта'), ('drive1', 'Накопитель 1'), ('cooler', 'Охлаждение'),
+                    ('psu', 'Блок питания'), ('case', 'Корпус'), ('extra', 'Допы')
+                ] %}
+
+                {% for cat_id, cat_name in categories %}
+                <div class="mb-3">
+                    <label class="form-label text-muted small">{{ cat_name }}</label>
+                    <select id="select-{{ cat_id }}" class="form-select bg-black text-white border-secondary comp-select" 
+                            onchange="validateAndCalculate()" data-category="{{ cat_id }}">
+                        <option value="0" data-price="0">Ничего не выбрано</option>
+                        {% for item in components if (item.category == cat_id or (cat_id in ['drive1','drive2','drive3'] and item.category == 'drive')) %}
+                        <option value="{{ item.id }}" 
+                                data-price="{{ item.price }}" 
+                                data-socket="{{ item.socket }}" 
+                                data-ram="{{ item.ram_type }}">
+                            {{ item.name }} <span class="text-muted">({{ item.price }} ₴)</span>
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <div id="error-{{ cat_id }}" class="text-danger small mt-1 d-none">Несовместимо!</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="sticky-top" style="top: 20px;">
+                <div class="card bg-black border-info border-opacity-50 text-white p-4 shadow">
+                    <h4 class="text-info mb-4 text-center">Итоговый расчет</h4>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Закупка:</span>
+                        <span id="total-base" class="fw-bold text-muted">0 ₴</span>
+                    </div>
+                    <hr class="border-secondary">
+                    <div class="text-center py-3">
+                        <div class="small text-white-50">ЦЕНА ДЛЯ КЛИЕНТА</div>
+                        <div id="total-client" class="display-5 fw-black text-warning">0 ₴</div>
+                    </div>
+                    <button class="btn btn-info w-100 fw-bold py-3 mt-3" onclick="copyConfig()">
+                        <i class="bi bi-clipboard-check me-2"></i>Скопировать конфиг
+                    </button>
+                    <button class="btn btn-outline-info w-100 fw-bold py-2 mt-2" onclick="printConfig()">
+                        <i class="bi bi-printer me-2"></i> Печать в PDF
+                    </button>
+                </div>
+                
+                <div id="compatibility-warning" class="alert alert-danger mt-3 d-none">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    В сборке есть ошибки совместимости!
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="settingsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark text-white border-secondary">
+            <div class="modal-header border-secondary">
+                <ul class="nav nav-tabs border-0" id="configTabs" role="tablist">
+                    <li class="nav-item">
+                        <button class="nav-link active bg-transparent text-white border-0 fw-bold" id="add-tab" data-bs-toggle="tab" data-bs-target="#add-pane">Добавить</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link bg-transparent text-white border-0 fw-bold" id="list-tab" data-bs-toggle="tab" data-bs-target="#list-pane">Управление базой</button>
+                    </li>
+                </ul>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            
+            <div class="tab-content mt-3">
+                <div class="tab-pane fade show active p-3" id="add-pane">
+                    <form action="{{ url_for('save_component') }}" method="POST">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted">Категория</label>
+                                <select name="category" class="form-select bg-black text-white border-secondary">
+                                    <option value="cpu">Процессор</option>
+                                    <option value="motherboard">Мат. плата</option>
+                                    <option value="ram">ОЗУ</option>
+                                    <option value="gpu">Видеокарта</option>
+                                    <option value="drive">Накопитель</option>
+                                    <option value="cooler">Охлаждение</option>
+                                    <option value="psu">Блок питания</option>
+                                    <option value="case">Корпус</option>
+                                    <option value="extra">Допы</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted">Цена закупки (₴)</label>
+                                <input type="number" name="price" class="form-control bg-black text-white border-secondary" required>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small text-muted">Название</label>
+                                <input type="text" name="name" class="form-control bg-black text-white border-secondary" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted">Сокет</label>
+                                <select name="socket" class="form-select bg-black text-white border-secondary">
+                                    <option value="0">Нет</option>
+                                    <option value="AM4">AM4</option>
+                                    <option value="AM5">AM5</option>
+                                    <option value="LGA1700">LGA1700</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted">Тип памяти</label>
+                                <select name="ram_type" class="form-select bg-black text-white border-secondary">
+                                    <option value="0">Нет</option>
+                                    <option value="DDR4">DDR4</option>
+                                    <option value="DDR5">DDR5</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-info w-100 mt-4 fw-bold">Сохранить в базу</button>
+                    </form>
+                </div>
+
+                <div class="tab-pane fade p-3" id="list-pane">
+                    <div style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-dark table-sm align-middle">
+                            <thead>
+                                <tr class="text-muted small">
+                                    <th>Название</th>
+                                    <th style="width: 100px;">Закупка</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in components %}
+                                <tr>
+                                    <td class="small">{{ item.name }}</td>
+                                    <td>
+                                        <input type="number" class="form-control form-control-sm bg-black text-white border-secondary quick-price" 
+                                               value="{{ item.price }}" data-id="{{ item.id }}" onchange="updatePrice(this)">
+                                    </td>
+                                    <td class="text-end">
+                                        <a href="{{ url_for('delete_component', comp_id=item.id) }}" class="btn btn-link text-danger p-0">
+                                            <i class="bi bi-trash"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+function validateAndCalculate() {
+    const cpu = document.getElementById('select-cpu').selectedOptions[0].dataset;
+    const mb = document.getElementById('select-motherboard').selectedOptions[0].dataset;
+    const ram = document.getElementById('select-ram').selectedOptions[0].dataset;
+    
+    let hasError = false;
+
+    // Сброс ошибок
+    document.querySelectorAll('.text-danger').forEach(e => e.classList.add('d-none'));
+    document.getElementById('compatibility-warning').classList.add('d-none');
+
+    // Проверка Сокета (CPU + MB)
+    if (cpu.socket && mb.socket && cpu.socket !== mb.socket && cpu.socket !== "0" && mb.socket !== "0") {
+        document.getElementById('error-motherboard').innerText = `Нужен сокет ${cpu.socket}, а выбран ${mb.socket}`;
+        document.getElementById('error-motherboard').classList.remove('d-none');
+        hasError = true;
+    }
+
+    // Проверка Памяти (MB + RAM)
+    if (mb.ram && ram.ram && mb.ram !== ram.ram && mb.ram !== "0" && ram.ram !== "0") {
+        document.getElementById('error-ram').innerText = `Плата поддерживает ${mb.ram}, а выбрана ${ram.ram}`;
+        document.getElementById('error-ram').classList.remove('d-none');
+        hasError = true;
+    }
+
+    if (hasError) document.getElementById('compatibility-warning').classList.remove('d-none');
+    
+    calculateTotal();
+}
+
+function calculateTotal() {
+    let totalBase = 0;
+    document.querySelectorAll('.comp-select').forEach(select => {
+        totalBase += parseFloat(select.selectedOptions[0].dataset.price || 0);
+    });
+
+    const markup = parseFloat(document.getElementById('markup-percent').value || 0);
+    const totalClient = totalBase * (1 + markup / 100);
+
+    document.getElementById('total-base').innerText = Math.round(totalBase).toLocaleString() + " ₴";
+    document.getElementById('total-client').innerText = Math.round(totalClient).toLocaleString() + " ₴";
+}
+
+function copyConfig() {
+    let text = "Конфигурация ПК:\n";
+    text += "━━━━━━━━━━━━━━━━━━━━\n";
+    document.querySelectorAll('.comp-select').forEach(select => {
+        const selectedOption = select.options[select.selectedIndex];
+        const name = selectedOption.text.split('(')[0].trim();
+        const label = select.parentElement.querySelector('label').innerText;
+
+        if (name !== "Ничего не выбрано") {
+            text += `♦️ ${label}: ${name}\n`;
+        }
+    });
+    const clientTotal = document.getElementById('total-client').innerText;
+    text += "━━━━━━━━━━━━━━━━━━━━\n";
+    text += `💰 Цена: ${clientTotal}`;
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(() => {
+            alert("✅ Конфигурация скопирована в буфер!");
+        }).catch(err => {
+            fallbackCopyTextToClipboard(text);
+        });
+    } else {
+        fallbackCopyTextToClipboard(text);
+    }
+}
+
+
+function fallbackCopyTextToClipboard(text) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+        document.execCommand('copy');
+        alert("✅ Конфигурация скопирована (fallback mode)!");
+    } catch (err) {
+        alert("❌ Ошибка при копировании. Выведи в консоль.");
+        console.error(text);
+    }
+    document.body.removeChild(textArea);
+}
+// --- КЕШИРОВАНИЕ ---
+
+function saveState() {
+    const state = {};
+    document.querySelectorAll('.comp-select').forEach(select => {
+        state[select.id] = select.value;
+    });
+    state['markup'] = document.getElementById('markup-percent').value;
+    localStorage.setItem('pc_config_cache', JSON.stringify(state));
+}
+
+function loadState() {
+    const saved = localStorage.getItem('pc_config_cache');
+    if (saved) {
+        const state = JSON.parse(saved);
+        Object.keys(state).forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = state[id];
+        });
+        document.getElementById('markup-percent').value = state['markup'] || 10;
+        validateAndCalculate(); 
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadState);
+
+const originalValidate = validateAndCalculate;
+validateAndCalculate = function() {
+    originalValidate();
+    saveState();
+};
+
+// --- БЫСТРОЕ ОБНОВЛЕНИЕ ЦЕНЫ ---
+
+async function updatePrice(input) {
+    const id = input.dataset.id;
+    const price = input.value;
+    
+    input.classList.add('border-info');
+    
+    await fetch(`/configurator/update_price/${id}/${price}`, { method: 'POST' });
+    
+    setTimeout(() => {
+        input.classList.remove('border-info');
+    }, 500);
+}
+
+// --- ПЕЧАТЬ ДЛЯ КТЫЕТНА  ---
+function printConfig() {
+    const configData = {
+        date: new Date().toLocaleDateString('ru-RU'),
+        total: document.getElementById('total-client').innerText,
+        items: []
+    };
+
+    document.querySelectorAll('.comp-select').forEach(select => {
+        const selectedOption = select.options[select.selectedIndex];
+        const name = selectedOption.text.split('(')[0].trim();
+        const label = select.parentElement.querySelector('label').innerText;
+        
+        const basePrice = parseFloat(selectedOption.dataset.price || 0);
+        const markup = parseFloat(document.getElementById('markup-percent').value || 0);
+        const clientPrice = Math.round(basePrice * (1 + markup / 100));
+
+        if (name !== "Ничего не выбрано" && name !== "0") {
+            configData.items.push({
+                label: label,
+                name: name,
+                price: clientPrice.toLocaleString('ru-RU')
+            });
+        }
+    });
+    sessionStorage.setItem('print_data', JSON.stringify(configData));
+    window.open('/configurator/print_page', '_blank');
+}
+</script>
+{% endblock %}

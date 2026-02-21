@@ -1,0 +1,121 @@
+{% extends "_base.html" %}
+
+{% block title %}НП ТТН{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-box-seam me-2"></i>НП ТТН</h2>
+        <!--<button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTtnModal">Добавить ТТН</button>-->
+    </div>
+
+    <table class="table table-hover shadow-sm bg-white rounded overflow-hidden">
+        <thead class="table-dark">
+            <tr>
+                <th>Дата</th>
+                <th>Номер ТТН</th>
+                <th>Клиент</th>
+                <th>Сумма</th>
+                <th>Примечание</th>
+                <th class="text-end">Действия</th>
+            </tr>
+        </thead>
+        <tbody class="align-middle">
+            {% for item in items %}
+            <tr>
+                <td class="text-muted small">{{ item.date }}</td>
+                <td><span class="badge bg-info-subtle text-white border">{{ item.number }}</span></td>
+                <td class="fw-bold">{{ item.client_name }}</td>
+                <td class="text-success fw-bold">{{ "{:,.2f}".format(item.amount) if item.amount else "0.00" }} грн</td>
+                <td><small class="text-muted">{{ item.note or "-" }}</small></td>
+                <td class="text-end">
+                    <button class="btn btn-outline-warning btn-sm me-1" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#editTtnModal{{ item.id }}">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+
+                    <a href="{{ url_for('delete_ttn', ttn_id=item.id) }}" 
+                       class="btn btn-outline-danger btn-sm" 
+                       onclick="return confirm('Видалити цей запис?')">
+                        <i class="bi bi-trash"></i>
+                    </a>
+                </td>
+            </tr>
+
+            <div class="modal fade" id="editTtnModal{{ item.id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content bg-dark text-white border-secondary">
+                        <div class="modal-header border-secondary">
+                            <h5 class="modal-title">Редактировать запись</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <form action="{{ url_for('edit_ttn', ttn_id=item.id) }}" method="POST">
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label class="form-label">Номер ТТН</label>
+                                    <input type="text" name="number" class="form-control bg-dark text-white border-secondary" value="{{ item.number }}" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Клиент</label>
+                                    <input type="text" name="client_name" class="form-control bg-dark text-white border-secondary" value="{{ item.client_name }}" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Сумма (грн)</label>
+                                    <input type="number" step="0.01" name="amount" class="form-control bg-dark text-white border-secondary" value="{{ item.amount }}">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Примечание</label>
+                                    <textarea name="note" class="form-control bg-dark text-white border-secondary" rows="2">{{ item.note }}</textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer border-secondary">
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                                <button type="submit" class="btn btn-primary px-4">Обновить</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <tr><td colspan="6" class="text-center py-4 text-muted">Записей ТТН пока нет.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="modal fade" id="addTtnModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title">Добавить новую запись</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('add_ttn') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Номер ТТН</label>
+                        <input type="text" name="number" class="form-control bg-dark text-white border-secondary" placeholder="59000..." required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Клиент</label>
+                        <input type="text" name="client_name" class="form-control bg-dark text-white border-secondary" placeholder="ФИО или наименование" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Сумма (грн)</label>
+                        <input type="number" step="0.01" name="amount" class="form-control bg-dark text-white border-secondary" placeholder="0.00">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Примечание</label>
+                        <textarea name="note" class="form-control bg-dark text-white border-secondary" rows="2" placeholder="что куда зачем"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary px-4">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

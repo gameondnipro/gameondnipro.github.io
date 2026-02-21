@@ -1,0 +1,85 @@
+{% extends "_base.html" %}
+
+{% block title %}Список Обращений{% endblock %}
+
+{% block content %}
+<h2>Список Гарантийных Обращений</h2>
+
+{% if search_query %}
+<p class="lead">Результаты поиска по запросу: <strong>"{{ search_query }}"</strong></p>
+{% endif %}
+
+<div class="table-responsive">
+    <table class="table table-hover table-striped">
+        <thead class="table-dark sticky-top">
+            <tr>
+                {% macro sort_header(col_name, display_name) %}
+                {% set new_order = 'asc' if current_sort != col_name or current_order == 'desc' else 'desc' %}
+                <th scope="col">
+                    <a href="{{ url_for('list_records', sort=col_name, order=new_order, q=search_query) }}"
+                        class="text-white text-decoration-none">
+                        {{ display_name }}
+                        {% if current_sort == col_name %}
+                        {% if current_order == 'asc' %}<i class="bi bi-arrow-up-short"></i>{% else %}<i
+                            class="bi bi-arrow-down-short"></i>{% endif %}
+                        {% else %}
+                        <i class="bi bi-sort-down-alt text-secondary"></i>
+                        {% endif %}
+                    </a>
+                </th>
+                {% endmacro %}
+
+                {{ sort_header('id', 'ID') }}
+                {{ sort_header('request_date', 'Дата обращения') }}
+                {{ sort_header('client_name', 'Клиент') }}
+                {{ sort_header('warranty_ticket_number', '№ Талона') }}
+                {{ sort_header('status', 'Статус') }}
+                <th>Проблема</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in records %}
+            <tr data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="auto" data-bs-html="true"
+                data-bs-custom-class="custom-popover" data-bs-delay='{"show": 500, "hide": 100}' data-bs-content="
+        <div style='position: relative; width: 100%; height: 250px;'> 
+            
+            <div style='position: absolute; top: 0; left: 0; right: 0; padding: 10px; z-index: 10; font-weight: bold;'>
+                Запись #{{ record.id }}
+            </div>
+            
+            <div class='popover-gradient-overlay'></div>
+
+            <div class='popover-card-content'>
+                </div>
+        </div>
+    " style="cursor: pointer;" class="{% if record.is_stale %}table-warning{% endif %}">
+
+                <td onclick="window.location='{{ url_for('view_record', record_id=record.id) }}';">{{ record.id }}</td>
+                <td onclick="window.location='{{ url_for('view_record', record_id=record.id) }}';">{{
+                    record.request_date }}</td>
+                <td onclick="window.location='{{ url_for('view_record', record_id=record.id) }}';">{{ record.client_name
+                    }}</td>
+                <td onclick="window.location='{{ url_for('view_record', record_id=record.id) }}';">{{
+                    record.warranty_ticket_number or '—' }}</td>
+
+                <td onclick="window.location='{{ url_for('view_record', record_id=record.id) }}';">
+                    <span class="badge 
+        {% if record.status == 'Исполнено' %}bg-success
+        {% elif record.status == 'Принят' %}bg-primary
+        {% elif record.status == 'В работе' %}bg-warning text-dark
+        {% elif record.status == 'Обработан' %}bg-purple 
+        {% else %}bg-secondary
+        {% endif %}">{{ record.status|trim }}</span>
+                </td>
+                <td onclick="window.location='{{ url_for('view_record', record_id=record.id) }}';">{{
+                    record.claimed_problem[:50] or '—' }}...</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="text-center">Нет записей в базе данных.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

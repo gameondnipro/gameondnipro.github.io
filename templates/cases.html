@@ -1,0 +1,175 @@
+{% extends "_base.html" %}
+{% block content %}
+<style>
+    .card-zoom { transition: transform 0.3s ease; }
+    .card:hover .card-zoom { transform: scale(1.02); }
+    .hover-opacity-100:hover { opacity: 1 !important; transition: 0.3s; }
+    .case-carousel { height: 250px; background: #1a1a1a; overflow: hidden; border-radius: 4px 4px 0 0; }
+    .case-img { height: 250px; object-fit: contain; width: 100%; }
+</style>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 text-white">
+        <div>
+            <h2><i class="bi bi-images text-warning me-2"></i>Наши корпуса</h2>
+            <span class="badge bg-primary">ЗАписей: {{ cases|length }}</span>
+        </div>
+        <!--<button class="btn btn-warning fw-bold" data-bs-toggle="modal" data-bs-target="#addCaseModal">
+            <i class="bi bi-plus-lg"></i> Добавить корпус
+        </button> -->
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <select class="form-select bg-dark text-white border-secondary"><option>Все цвета</option></select>
+        </div>
+        <div class="col-md-3">
+            <select class="form-select bg-dark text-white border-secondary"><option>Все форм-факторы</option></select>
+        </div>
+    </div>
+
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        {% for case in cases %}
+        <div class="col">
+            <div class="card h-100 shadow-sm bg-dark text-white border-secondary position-relative">
+                
+                <button class="btn btn-outline-danger btn-sm position-absolute top-0 start-0 m-2 opacity-50 hover-opacity-100 shadow-sm" 
+                        style="z-index: 10;"
+                        onclick="confirmDeleteCase({{ case.id }}, '{{ case.name }}')">
+                    <i class="bi bi-trash"></i>
+                </button>
+
+                {% if case.photos %}
+                    {% set photo_list = case.photos.split(',') %}
+                    <div id="carousel-{{ case.id }}" class="carousel slide case-carousel" data-bs-ride="false">
+                        <div class="carousel-inner">
+                            {% for photo in photo_list %}
+                            <div class="carousel-item {% if loop.first %}active{% endif %}">
+                                <img src="/uploads/{{ photo }}" class="case-img" alt="{{ case.name }}">
+                                
+                                <button class="btn btn-sm btn-light position-absolute top-0 end-0 m-2 opacity-75 shadow-sm" 
+                                        onclick="copyImageToClipboard('/uploads/{{ photo }}')" 
+                                        title="Копировать">
+                                    <i class="bi bi-clipboard-plus"></i>
+                                </button>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        
+                        {% if photo_list|length > 1 %}
+                        <button class="carousel-control-prev" type="button" data-bs-target="#carousel-{{ case.id }}" data-bs-slide="prev">
+                            <span class="carousel-control-prev-icon"></span>
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#carousel-{{ case.id }}" data-bs-slide="next">
+                            <span class="carousel-control-next-icon"></span>
+                        </button>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="case-carousel d-flex align-items-center justify-content-center bg-secondary">
+                        <i class="bi bi-camera-video-off fs-1"></i>
+                    </div>
+                {% endif %}
+
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title text-warning">{{ case.name }}</h5>
+                    <div class="mb-3">
+                        <span class="badge bg-secondary">{{ case.color }}</span>
+                        <span class="badge bg-info text-dark">{{ case.form_factor }}</span>
+                    </div>
+                    <div class="mt-auto border-top pt-2">
+                        <h6 class="text-success mb-0 fw-bold">{{ case.price }} грн. 
+                            <small class="text-muted fw-normal">(на складе: {{ case.stock_count }})</small>
+                        </h6>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="modal fade" id="addCaseModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title">Добавить </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('add_case') }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Наименование</label>
+                        <input type="text" name="name" class="form-control bg-dark text-white border-secondary" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Цвет</label>
+                            <input type="text" name="color" class="form-control bg-dark text-white border-secondary">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Форм-фактор</label>
+                            <select name="form_factor" class="form-select bg-dark text-white border-secondary">
+                                <option value="ATX">ATX</option>
+                                <option value="Micro-ATX">Micro-ATX</option>
+                                <option value="Mini-ITX">Mini-ITX</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Цена (грн)</label>
+                            <input type="number" name="price" class="form-control bg-dark text-white border-secondary">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">К-сть</label>
+                            <input type="number" name="stock_count" class="form-control bg-dark text-white border-secondary" value="1">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Фото</label>
+                        <input type="file" name="photos" class="form-control bg-dark text-white border-secondary" multiple>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="submit" class="btn btn-primary w-100">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyImageToClipboard(imageUrl) {
+    const fullPath = window.location.origin + imageUrl;
+    if (navigator.clipboard && window.isSecureContext) {
+        fetch(imageUrl)
+            .then(response => response.blob())
+            .then(blob => {
+                const item = new ClipboardItem({ [blob.type]: blob });
+                navigator.clipboard.write([item]);
+                alert("✅ Фото скопійовано!");
+            })
+            .catch(() => copyTextFallback(fullPath));
+    } else {
+        copyTextFallback(fullPath);
+    }
+}
+
+function copyTextFallback(text) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textArea);
+    alert("📎 Скопійовано посилання на фото");
+}
+
+function confirmDeleteCase(id, name) {
+    if (confirm("Ви впевнені, що хочете видалити '" + name + "'?")) {
+        window.location.href = "/delete_case/" + id;
+    }
+}
+</script>
+{% endblock %}

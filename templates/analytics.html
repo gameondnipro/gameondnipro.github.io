@@ -1,0 +1,55 @@
+{% extends "_base.html" %}
+
+{% block title %}Аналітика Проблем{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">📊 Аналітика: Найпоширеніші Проблеми та Рішення WIP</h1>
+
+<div class="row">
+    
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-danger text-white">
+                <i class="bi bi-bug"></i> ТОП-10 Заявлених Проблем
+            </div>
+            <div class="card-body">
+                {% if top_problems %}
+                    <ul class="list-group list-group-flush">
+                    {% for problem in top_problems %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ problem.claimed_problem }}
+                            <span class="badge bg-danger rounded-pill">{{ problem.count }}</span>
+                        </li>
+                    {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="alert alert-warning m-0">Недостатньо даних для аналізу проблем.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-success text-white">
+                <i class="bi bi-tools"></i> ТОП-10 Використаних Рішень/Деталей
+            </div>
+            <div class="card-body">
+                {% if top_solutions %}
+                    <ul class="list-group list-group-flush">
+                    {% for solution in top_solutions %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ solution.replaced_parts }}
+                            <span class="badge bg-success rounded-pill">{{ solution.count }}</span>
+                        </li>
+                    {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="alert alert-warning m-0">Недостатньо даних про замінені деталі для аналізу.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+</div>
+{% endblock %}

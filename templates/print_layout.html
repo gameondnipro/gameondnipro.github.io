@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Конфигурация ПК</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: white; color: black; font-family: 'Segoe UI', sans-serif; }
+        .print-container { max-width: 800px; margin: 40px auto; border: 1px solid #eee; padding: 40px; }
+        .editable:hover { background: #f8f9fa; cursor: pointer; border-radius: 4px; }
+        .logo-text { font-size: 24px; font-weight: 900; letter-spacing: -1px; }
+        .total-box { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 30px; }
+        @media print {
+            .no-print { display: none; }
+            body { margin: 0; padding: 0; }
+            .print-container { border: none; margin: 0; width: 100%; }
+        }
+    </style>
+</head>
+<body>
+<div class="no-print bg-dark text-white p-3 mb-4">
+    <div class="container d-flex justify-content-between align-items-center">
+        <span>💡 Кликни на текст, чтобы изменить его перед печатью</span>
+        <button class="btn btn-info btn-sm fw-bold" onclick="window.print()">ПЕЧАТАТЬ PDF</button>
+    </div>
+</div>
+
+<div class="print-container shadow-sm">
+    <div class="d-flex justify-content-between mb-5">
+        <div>
+            <div class="logo-text text-danger" style="font-size: 28px; font-weight: 900;"contenteditable="true">Game X</div>
+            <div class="small text-muted" contenteditable="true">м. Днiпро</div>
+        </div>
+        <div class="text-end">
+            <h4 class="editable" contenteditable="true" id="print-order-no">Конфiгурацiя №0000</h4>
+            <div class="small text-muted" id="print-date">Дата</div>
+        </div>
+    </div>
+
+    <table class="table mt-4">
+        <thead>
+            <tr class="table-light">
+                <th>Компонент</th>
+                <th class="text-end">Назва</th>
+            </tr>
+        </thead>
+        <tbody id="print-table-body">
+            </tbody>
+    </table>
+
+    <div class="total-box d-flex justify-content-between align-items-center mt-5 p-4 bg-light rounded">
+        <div>
+            <div class="text-muted small">До сплати:</div>
+            <h2 class="mb-0 text-warning fw-bold editable" contenteditable="true" id="print-total">0 ₴</h2>
+        </div>
+        <div class="text-end text-muted small" contenteditable="true" >
+            Гарантiя 36 мiсяцiв на ВСЮ збiрку.<br>
+            Конфiгурацiя та цiна актуальна протягом 3-х днiв.*<br>
+            <br>
+            *(виняток-внесення передоплати)
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const data = JSON.parse(sessionStorage.getItem('print_data'));
+    if (!data) return alert("Данные для печати не найдены!");
+
+    document.getElementById('print-date').innerText = data.date;
+    document.getElementById('print-total').innerText = data.total;
+    document.getElementById('print-order-no').innerText = "Конфiгурацiя №" + Math.floor(1000 + Math.random() * 9000);
+
+    const tbody = document.getElementById('print-table-body');
+    data.items.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="text-muted small">${item.label}</td>
+            <td class="editable fw-medium" contenteditable="true">${item.name}</td>
+            
+        `;
+        tbody.appendChild(tr);
+    });
+});
+</script>
+</body>
+</html>

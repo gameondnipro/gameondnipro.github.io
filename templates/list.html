@@ -1,0 +1,137 @@
+{% extends "_base.html" %}
+
+{% block title %}Список Обращений{% endblock %}
+
+{% block content %}
+<h2>Список Гарантийных Обращений</h2>
+
+{% if search_query %}
+    <p class="lead">Результаты поиска по запросу: <strong>"{{ search_query }}"</strong></p>
+{% endif %}
+
+<div class="table-responsive">
+    <table class="table table-hover table-striped">
+        
+        <thead class="table-dark sticky-top">
+            <tr>
+                {% macro sort_header(col_name, display_name) %}
+                {% set new_order = 'asc' if current_sort != col_name or current_order == 'desc' else 'desc' %}
+                <th scope="col">
+                    <a href="{{ url_for('service_list', sort=col_name, order=new_order, q=search_query) }}" class="text-white text-decoration-none">
+                        {{ display_name }}
+                        {% if current_sort == col_name %}
+                            {% if current_order == 'asc' %}<i class="bi bi-arrow-up-short"></i>{% else %}<i class="bi bi-arrow-down-short"></i>{% endif %}
+                        {% else %}
+                            <i class="bi bi-sort-down-alt text-secondary"></i>
+                        {% endif %}
+                    </a>
+                </th>
+                {% endmacro %}
+                
+                {{ sort_header('id', 'ID') }}
+                {{ sort_header('request_date', 'Дата обращения') }}
+                {{ sort_header('client_name', 'Клиент') }}
+                {{ sort_header('status', 'Статус') }}
+                
+                <th class="text-end">Деталі</th>
+            </tr>
+        </thead>
+        
+        <tbody>
+            {% for record in records %}
+            
+         <tr data-bs-toggle="popover"
+            data-bs-trigger="manual"  data-bs-placement="auto"
+            data-bs-html="true"
+            data-bs-custom-class="custom-popover" 
+            data-bs-delay='{"show": 600, "hide": 300}'
+            
+            data-bs-content="
+                <div style='position: relative; width: 100%; height: 250px;'> 
+                    
+                    {% if record.first_photo_path %}
+                        <img src='{{ url_for('uploaded_file', filename=record.first_photo_path.split('/')[-1]) }}' 
+                            alt='Превью фото' 
+                            style='width: 100%; height: 100%; object-fit: cover; display: block;'>
+                    {% else %}
+                        <div style='width: 100%; height: 100%; background-color: #555; display: flex; justify-content: center; align-items: center;'>
+                            <p class='text-white text-center'>Фото ПК отсутствует</p>
+                        </div>
+                    {% endif %}
+                    
+                    <div class='popover-gradient-overlay'></div>
+
+                    <div class='popover-card-content' style='position: absolute; bottom: 0; left: 0; right: 0; padding: 10px; color: #fff;'>
+                        <h5 class='mb-0 fw-bold'>{{ record.client_name }}</h5> 
+                        
+                        <p class='small mb-1'>Проблема: {{ record.claimed_problem|truncate(50, True, '...') }}</p>
+                        
+                        <small class='text-white-50'>ID: {{ record.id }} | Статус: {{ record.status }}</small>
+                    </div>
+                </div>
+            "
+            
+            onclick="window.location='{{ url_for('view_record', record_id=record.id) }}';" 
+            style="cursor: pointer;"
+            class="{% if record.is_stale %}table-warning{% endif %}">
+                
+                <td>{{ record.id }}</td>
+                <td>{{ record.request_date }}</td>
+                
+                <td style="position: relative;">
+                    <span>{{ record.client_name }}</span>
+                    <span class="contact-icons text-muted">
+                        {% if record.client_phone %}<i class="bi bi-telephone-fill me-1" title="Телефон"></i>{% endif %}
+                        {% if record.client_telegram %}<i class="bi bi-telegram" title="Telegram"></i>{% endif %}
+                    </span>
+                </td>
+                
+                <td>
+                    <span class="badge 
+                        {% if record.status == 'Исполнено' %}bg-success
+                        {% elif record.status == 'Принят' %}bg-primary
+                        {% elif record.status == 'В работе' %}bg-warning text-dark
+                        {% elif record.status == 'Обработан' %}bg-purple 
+                        {% else %}bg-secondary
+                        {% endif %}">{{ record.status|trim }}</span>
+                </td>
+                
+                <td class="text-end">
+                    <button type="button" 
+                            class="btn btn-sm btn-outline-secondary" 
+                            data-bs-toggle="collapse" 
+                            data-bs-target="#details-{{ record.id }}" 
+                            aria-expanded="false" 
+                            aria-controls="details-{{ record.id }}"
+                            onclick="event.stopPropagation();">
+                        <i class="bi bi-chevron-down"></i>
+                    </button>
+                </td>
+            </tr>
+            
+            <tr class="collapse-row">
+                <td colspan="5" class="p-0"> 
+                    <div class="collapse" id="details-{{ record.id }}">
+                        <div class="collapse-body">
+                            <p class="mb-1"><strong>№ Талона / ТТН:</strong> {{ record.warranty_ticket_number or '—' }} / {{ record.ttn_number or '—' }}</p>
+                            <p class="mb-1"><strong>Заявлена проблема:</strong> {{ record.claimed_problem or '—' }}</p>
+                            <p class="mb-1"><strong>Дата створення:</strong> {{ record.created_at or '—' }}</p>
+                            <p class="mb-0 text-end">
+                                <a href="{{ url_for('view_record', record_id=record.id) }}" class="btn btn-sm btn-info">
+                                    <i class="bi bi-box-arrow-in-up-right"></i> Полная инфо
+                                </a>
+                            </p>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="text-center text-muted">Немає записів в базі даних.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        
+        </table>
+</div>
+{% endblock %}

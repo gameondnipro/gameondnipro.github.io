@@ -1,0 +1,95 @@
+{% extends "_base.html" %}
+
+{% block title %}Добавить Запись{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-md-10 col-12">
+        <h2 class="mb-4">Добавить Новую Запись</h2>
+        <div class="card shadow">
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('add_record') }}" enctype="multipart/form-data">
+
+                    <div class="row mb-3">
+                        <div class="col-md-6 mb-3 mb-md-0">
+                            <label for="request_date" class="form-label">Дата обращения <span
+                                    class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="request_date" name="request_date"
+                                value="{{ default_request_date or '' }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="issue_date" class="form-label">Дата выдачи ПК</label>
+                            <input type="date" class="form-control" id="issue_date" name="issue_date">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="client_name" class="form-label">Имя клиента <span
+                                class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="client_name" name="client_name" required>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6 mb-3 mb-md-0">
+                            <label for="client_phone" class="form-label">Номер телефона</label>
+                            <input type="tel" class="form-control" id="client_phone" name="client_phone">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="client_telegram" class="form-label">Telegram ID</label>
+                            <input type="text" class="form-control" id="client_telegram" name="client_telegram">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+
+                        <div class="row mb-3">
+                            <div class="col-md-6 mb-3 mb-md-0">
+                                <label for="warranty_ticket_number" class="form-label">Номер гарантийного талона</label>
+                                <input type="text" class="form-control" id="warranty_ticket_number"
+                                    name="warranty_ticket_number">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="ttn_number" class="form-label">Номер ТТН (если не личное посещение)</label>
+                                <input type="text" class="form-control" id="ttn_number" name="ttn_number">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="status" class="form-label">Статус</label>
+                            <select class="form-select" id="status" name="status">
+                                {% for s in statuses %}
+                                <option value="{{ s }}" {% if s=='Принят' %}selected{% endif %}>{{ s }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="claimed_problem" class="form-label">Заявленная проблема</label>
+                            <textarea class="form-control" id="claimed_problem" name="claimed_problem"
+                                rows="3"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="diagnosed_problem" class="form-label">Что продиагностировано</label>
+                            <textarea class="form-control" id="diagnosed_problem" name="diagnosed_problem"
+                                rows="3"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="replaced_parts" class="form-label">Что заменено</label>
+                            <textarea class="form-control" id="replaced_parts" name="replaced_parts"
+                                rows="3"></textarea>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="photos" class="form-label">Фото (несколько файлов)</label>
+                            <input class="form-control" type="file" id="photos" name="photos" multiple accept="image/*">
+                            <div class="form-text">...</div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100">Сохранить Запись</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

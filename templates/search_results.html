@@ -1,0 +1,36 @@
+{% extends "_base.html" %}
+{% block title %}Поиск по {{ query }} {% endblock %}
+{% block content %}
+<div class="container mt-4 text-white">
+    <h3>Результаты поиска для: <span class="text-warning">"{{ query }}"</span></h3>
+    <hr class="border-secondary">
+
+    {% if results %}
+        <div class="row row-cols-1 g-3">
+            {% for item in results %}
+            <div class="col">
+                <a href="{{ item.link }}" class="text-decoration-none">
+                    <div class="card bg-dark border-secondary h-100 shadow-sm card-zoom">
+                        <div class="card-body d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="badge {% if item.category == 'Сервис' %}bg-primary{% elif item.category == 'Корпуса' %}bg-success{% else %}bg-info text-dark{% endif %} mb-2">
+                                    {{ item.category }}
+                                </span>
+                                <h5 class="card-title text-white mb-1">{{ item.title }}</h5>
+                                <p class="card-text text-muted small mb-0">{{ item.info }}</p>
+                            </div>
+                            <i class="bi bi-chevron-right text-muted"></i>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-dark border-secondary text-center py-5">
+            <i class="bi bi-search fs-1 text-muted"></i>
+            <p class="mt-3 mb-0">За вашим запитом нічого не знайдено.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

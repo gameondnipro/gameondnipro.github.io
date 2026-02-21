@@ -1,0 +1,114 @@
+{% extends "_base.html" %}
+
+{% block title %}Редактировать Запись №{{ record.id }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-md-10 col-12">
+        <h2 class="mb-4">Редактировать Запись №{{ record.id }}</h2>
+        <form method="POST" action="{{ url_for('edit_record', record_id=record.id) }}" enctype="multipart/form-data">
+            <div class="card shadow mb-4">
+                <div class="card-body">
+
+                    <div class="row mb-3">
+                        <div class="col-md-6 mb-3 mb-md-0">
+                            <label for="request_date" class="form-label">Дата обращения <span
+                                    class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="request_date" name="request_date"
+                                value="{{ record.request_date }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="issue_date" class="form-label">Дата выдачи ПК</label>
+                            <input type="date" class="form-control" id="issue_date" name="issue_date"
+                                value="{{ record.issue_date or '' }}">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="client_name" class="form-label">Имя клиента <span
+                                class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="client_name" name="client_name"
+                            value="{{ record.client_name }}" required>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6 mb-3 mb-md-0">
+                            <label for="client_phone" class="form-label">Номер телефона</label>
+                            <input type="tel" class="form-control" id="client_phone" name="client_phone"
+                                value="{{ record.client_phone or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="client_telegram" class="form-label">Telegram ID</label>
+                            <input type="text" class="form-control" id="client_telegram" name="client_telegram"
+                                value="{{ record.client_telegram or '' }}">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6 mb-3 mb-md-0">
+                            <label for="warranty_ticket_number" class="form-label">Номер гарантийного талона</label>
+                            <input type="text" class="form-control" id="warranty_ticket_number"
+                                name="warranty_ticket_number" value="{{ record.warranty_ticket_number or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="ttn_number" class="form-label">Номер ТТН</label>
+                            <input type="text" class="form-control" id="ttn_number" name="ttn_number"
+                                value="{{ record.ttn_number or '' }}">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="status" class="form-label">Статус</label>
+                        <select class="form-select" id="status" name="status">
+                            {% for s in statuses %}
+                            <option value="{{ s }}" {% if s==record.status %}selected{% endif %}>{{ s }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="claimed_problem" class="form-label">Заявленная проблема</label>
+                        <textarea class="form-control" id="claimed_problem" name="claimed_problem"
+                            rows="3">{{ record.claimed_problem or '' }}</textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="diagnosed_problem" class="form-label">Что продиагностировано</label>
+                        <textarea class="form-control" id="diagnosed_problem" name="diagnosed_problem"
+                            rows="3">{{ record.diagnosed_problem or '' }}</textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="replaced_parts" class="form-label">Что заменено</label>
+                        <textarea class="form-control" id="replaced_parts" name="replaced_parts"
+                            rows="3">{{ record.replaced_parts or '' }}</textarea>
+                    </div>
+
+                    <h5 class="mt-4">Существующие фото:</h5>
+                    {% if photos %}
+                    <div class="row mb-3">
+                        {% for photo in photos %}
+                        <div class="col-4 col-md-3 mb-2 position-relative">
+                            <img src="{{ url_for('uploaded_file', filename=photo.file_path.split('/')[-1]) }}"
+                                class="img-fluid rounded" style="max-height: 100px; object-fit: cover;">
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p>Нет прикрепленных фото.</p>
+                    {% endif %}
+
+                    <div class="mb-4">
+                        <label for="photos" class="form-label">Добавить новые фото</label>
+                        <input class="form-control" type="file" id="photos" name="photos" multiple accept="image/*">
+                        <div class="form-text">Новые файлы будут добавлены к существующим.</div>
+                    </div>
+
+                    <button type="submit" class="btn btn-success w-100">Сохранить Изменения</button>
+                    <a href="{{ url_for('view_record', record_id=record.id) }}"
+                        class="btn btn-outline-secondary w-100 mt-2">Отмена</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,123 @@
+{% extends "_base.html" %}
+{% block title %}Главная{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4 text-center">ПРЕДСТАВЛЯЮ ВАШЕМУ ВНИМАНИЮ ТАК НАЗЫВАЕМЫЙ ИНТРАНЕТ СУЧЕНЬКИ</h1>
+    
+    <div class="row g-4">
+        <div class="col-md-4 mb-6">
+            <a href="/service" class="card h-100 shadow-sm text-decoration-none hover-card"">
+                <div class="hub-card p-4 text-center position-relative h-100">
+                    <span class="badge rounded-pill bg-danger badge-counter">3 HOT</span>
+                    <div class="icon-box mx-auto">
+                        <i class="bi bi-tools text-primary fs-1"></i>
+                    </div>
+                    <h4 class="card-title text-white">Сервис</h4>
+                    <p class="text-muted">База ремонтов и гарантий тёмочки</p>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-4 col-sm-6">
+            <a href="/ttn" class="card h-100 shadow-sm text-decoration-none hover-card">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-box-seam display-4 text-success mb-3"></i>
+                    <h4 class="card-title text-white">НП ТТН</h4>
+                    <p class="text-muted">Ну НПТТН</p>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-4 col-sm-6">
+            <a href="/configurator" class="card h-100 shadow-sm text-decoration-none hover-card">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-cpu display-4 text-info mb-3"></i>
+                    <h3 class="card-title text-white">Просчёт ПК</h3>
+                    <p class="text-muted">Актуальные цены и совместимость</p>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-4 col-sm-6">
+            <a href="/cases" class="card h-100 shadow-sm text-decoration-none hover-card">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-images display-4 text-warning mb-3"></i>
+                    <h3 class="card-title text-white">База корпусов</h3>
+                    <p class="text-muted">Галерея корпусинских</p>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-4 col-sm-6">
+            <a href="/tasks" class="card h-100 shadow-sm text-decoration-none hover-card">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-list-check display-4 text-danger mb-3"></i>
+                    <h3 class="card-title text-white">Задачи (Jira)</h3>
+                    <p class="text-muted">Приоритеты и дедлайны</p>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-4 col-sm-6">
+            <a href="/notes" class="card h-100 shadow-sm text-decoration-none hover-card">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-lightbulb display-4 text-secondary mb-3"></i>
+                    <h3 class="card-title text-white">Идеи</h3>
+                    <p class="text-muted">Заметки и письки</p>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-4 col-sm-6">
+            <a href="/installment" class="card h-100 shadow-sm text-decoration-none hover-card">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-credit-card-fill display-4 text-secondary mb-3"></i>
+                    <h3 class="card-title text-white">Оплата частями</h3>
+                    <p class="text-muted">Просчёт ОЧ ПРИВАТ МОНО ПУМБ</p>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-4 col-sm-6">
+            <a href="/alarm" class="card h-100 shadow-sm text-decoration-none hover-card">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-exclamation-octagon-fill display-4 text-danger mb-3"></i>
+                    <h3 class="card-title text-white">Срочные заказы</h3>
+                    <p class="text-muted">ЗАШЁЛ ГЛЯНУЛ СДЕЛАЛ РЕШИЛ молодец</p>
+                </div>
+            </a>
+        </div>        
+        <div class="col-md-4 col-sm-6">
+            <a href="https://genrandom.com/cats/" class="card h-100 shadow-sm text-decoration-none hover-card">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-chat-heart-fill display-4 text-warning mb-3"></i>
+                    <h3 class="card-title text-white">Картинки с котиками</h3>
+                    <p class="text-muted">Расслабиться когда тяжелый день</p>
+                </div>
+            </a>
+        </div>    
+    </div>
+</div>
+
+<style>
+    .hover-card { transition: transform 0.2s, box-shadow 0.2s; border: none; }
+    .hover-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.15)!important; }
+    .bi { filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1)); }
+</style>
+<style>
+    .hover-card { 
+        transition: all 0.3s ease; 
+        border: 1px solid rgba(255,255,255,0.1); 
+        background: #252525; 
+    }
+    
+    .hover-card:hover { 
+        transform: translateY(-10px); 
+        box-shadow: 0 15px 30px rgba(0,0,0,0.5)!important;
+        border-color: rgba(255,255,255,0.3);
+    }
+
+    .bi { 
+        filter: drop-shadow(0 0 8px rgba(255,255,255,0.1)); 
+    }
+</style>
+{% endblock %}

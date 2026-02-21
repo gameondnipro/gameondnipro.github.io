@@ -1,0 +1,244 @@
+{% extends "_base.html" %}
+
+{% block title %}Панель Управления{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Панель Управления</h1>
+
+<div class="card shadow-lg mb-5 border-0">
+    <div class="card-header bg-success text-white fw-bold">
+        <i class="bi bi-speedometer2"></i> Быстрый Приём
+    </div>
+    <div class="card-body bg-dark rounded-3">
+        <form method="POST" action="{{ url_for('quick_add_record') }}" class="row g-3">
+            
+            <div class="col-md-4">
+                <label for="quickClientName" class="form-label">Имя Клиента</label>
+                <input type="text" class="form-control" id="quickClientName" name="client_name" placeholder="Покупець Такийто" required>
+            </div>
+            
+            <div class="col-md-6">
+                <label for="quickProblem" class="form-label">Заявленная Проблема</label>
+                <input type="text" class="form-control" id="quickProblem" name="claimed_problem" placeholder="Не включается / Перезагружается" required>
+            </div>
+            
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-save"></i> Принять
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<h2 class="mt-4">Последние Обращения</h2>
+<div class="card shadow-sm mb-5">
+    <div class="card-body">
+        <ul class="list-group list-group-flush">
+            {% for record in recent_records %}
+            <li class="list-group-item list-group-item-action"
+                onclick="window.location='{{ url_for('view_record', record_id=record.id) }}';" style="cursor: pointer;">
+
+                <div class="d-flex w-100 justify-content-between align-items-center">
+
+                    <div class="me-3 flex-grow-1" style="min-width: 0;">
+                        <h5 class="mb-1 fw-bold">#{{ record.id }} {{ record.client_name }}</h5>
+                        <p class="mb-1 text-truncate">
+                            {{ record.claimed_problem | truncate(120, True, '...') }}
+                        </p>
+                    </div>
+
+                    <div class="text-end flex-shrink-0">
+                        <small class="text-muted d-block">{{ record.request_date }}</small>
+
+                        <span class="badge 
+                            {% if record.status == 'Исполнено' %}bg-success
+                            {% elif record.status == 'В работе' %}bg-warning text-dark
+                            {% elif record.status == 'Обработан' %}bg-purple 
+                            {% else %}bg-primary
+                            {% endif %}">
+                            {{ record.status|trim }}
+                        </span>
+                    </div>
+                </div>
+            </li>
+            {% else %}
+            <li class="list-group-item text-center text-muted">
+                Нет недавних обращений в базе.
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+<p class="text-end mt-3 mb-5">
+    <a href="{{ url_for('service_list') }}" class="btn btn-secondary">Перейти к полному списку</a>
+</p>
+
+
+<div class="row mb-5">
+
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm border-danger h-100">
+            <div class="card-header bg-danger text-white">
+                <i class="bi bi-exclamation-triangle-fill"></i> ВНИМАНИЕ: Зависшие Заявки ({{ stale_records|length }})
+            </div>
+            <div class="card-body">
+                {% if stale_records %}
+                <ul class="list-group list-group-flush">
+                    {% for record in stale_records %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <a href="{{ url_for('view_record', record_id=record.id) }}"
+                            class="text-danger text-decoration-none">
+                            Заявка #{{ record.id }}: {{ record.client_name }} (с {{ record.request_date }})
+                        </a>
+                        <span class="badge bg-danger rounded-pill">Срочно</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="alert alert-success m-0">Нет заявок в работе дольше 7 дней.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header">Нагрузка сервиса (Последние 3 месяца)</div>
+            <div class="card-body">
+                <canvas id="monthlyChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<h2 class="mt-4">Общая Статистика и Аналитика</h2>
+<div class="row mb-5">
+    
+    <div class="col-md-5 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-primary text-white">
+                <i class="bi bi-pie-chart-fill"></i> Распределение активных заявок
+            </div>
+            <div class="card-body d-flex justify-content-center align-items-center">
+                <canvas id="statusChart" style="max-height: 350px;"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-7">
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <div class="card shadow-sm border-0 h-100 bg-secondary text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Всего Обращений (Архив включен)</h5>
+                        <p class="card-text fs-1 fw-bold">{{ total_records }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6 mb-3">
+                <div class="card shadow-sm border-0 h-100 bg-success text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Исполнено</h5>
+                        <p class="card-text fs-1 fw-bold">{{ metrics.get('Исполнено', 0) }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6 mb-3">
+                <div class="card shadow-sm border-0 h-100 bg-warning text-dark">
+                    <div class="card-body">
+                        <h5 class="card-title">В работе</h5>
+                        <p class="card-text fs-1 fw-bold">{{ metrics.get('В работе', 0) }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <div class="card shadow-sm border-0 h-100 bg-danger text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Отказ</h5>
+                        <p class="card-text fs-1 fw-bold">{{ metrics.get('Отказ', 0) }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+
+        const ctx = document.getElementById('monthlyChart').getContext('2d');
+        const chartData = {
+            labels: JSON.parse('{{ chart_labels | tojson }}'),
+            datasets: [{
+                label: 'Заявок принято',
+                data: JSON.parse('{{ chart_values | tojson }}'),
+                backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        };
+
+        const config = {
+            type: 'bar',
+            data: chartData,
+            options: {
+                responsive: true,
+                scales: {
+                    y: { beginAtZero: true, title: { display: true, text: 'Количество заявок' } }
+                }
+            }
+        };
+
+        const statusCtx = document.getElementById('statusChart').getContext('2d');
+        
+        const statusChartLabels = JSON.parse('{{ status_chart_labels | tojson }}');
+        const statusChartData = JSON.parse('{{ status_chart_data | tojson }}');
+        const statusChartColors = [
+            '#007bff', // Принят
+            '#ffc107', // В работе
+            '#28a745', // Исполнено
+            '#6f42c1', // Обработан
+            '#dc3545', // Отказ
+        ];
+
+        const statusChartConfig = {
+            type: 'doughnut', 
+            data: {
+                labels: statusChartLabels,
+                datasets: [{
+                    data: statusChartData,
+                    backgroundColor: statusChartColors,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: 'var(--bs-body-color)'
+                        }
+                    },
+                    title: {
+                        display: false
+                    }
+                }
+            }
+        };
+        
+        
+        new Chart(ctx, config); 
+        
+        new Chart(statusCtx, statusChartConfig); 
+    });
+</script>
+
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "_base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2><i class="bi bi-list-check"></i> Активные задачи</h2>
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <h5 class="p-2 bg-light border-bottom">Нужно сделать</h5>
+            <div class="task-list p-2" style="min-height: 400px; background: #fdfdfd;">
+                <div class="card mb-2 shadow-sm border-start border-danger border-4">
+                    <div class="card-body p-2">
+                        <small class="text-muted">#101</small>
+                        <h6>Собрать ПК для стрима</h6>
+                        <span class="badge bg-danger">Critical</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4"><h5 class="p-2 bg-light border-bottom">В работе</h5></div>
+        <div class="col-md-4"><h5 class="p-2 bg-light border-bottom">Готово</h5></div>
+    </div>
+</div>
+{% endblock %}

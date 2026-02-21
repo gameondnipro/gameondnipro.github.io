@@ -1,0 +1,106 @@
+{% extends "_base.html" %}
+
+{% block title %}Розширені Звіти{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">📈 Розширені Звіти WIP</h1>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h5 class="card-title">Фільтрація за періодом</h5>
+        <form method="GET" action="{{ url_for('advanced_reports') }}" class="row g-3 align-items-end">
+            
+            <div class="col-md-4">
+                <label for="startDate" class="form-label">Початкова дата (З)</label>
+                <input type="date" class="form-control" id="startDate" name="start_date" value="{{ start_date or '' }}">
+            </div>
+            
+            <div class="col-md-4">
+                <label for="endDate" class="form-label">Кінцева дата (По)</label>
+                <input type="date" class="form-control" id="endDate" name="end_date" value="{{ end_date or '' }}">
+            </div>
+            
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-funnel"></i> Застосувати фільтр
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<h2 class="mt-5 mb-3">Сводка за період 
+    {% if start_date and end_date %}({{ start_date }} – {{ end_date }}){% endif %}
+</h2>
+<div class="row mb-5">
+    {% set total_period = 0 %}
+    {% for stat in status_stats %}
+        {% set total_period = total_period + stat.count %}
+    {% endfor %}
+
+    <div class="col-md-3 mb-3">
+        <div class="card shadow-sm border-0 h-100 bg-primary text-white">
+            <div class="card-body">
+                <h5 class="card-title">Всього оброблено</h5>
+                <p class="card-text fs-1 fw-bold">{{ total_period }}</p>
+            </div>
+        </div>
+    </div>
+
+    {% for stat in status_stats %}
+        {% set bg_class = 'bg-success' if stat.status == 'Исполнено' 
+                         else ('bg-danger' if stat.status == 'Отказ' 
+                         else ('bg-warning text-dark' if stat.status == 'В работе' 
+                         else ('bg-info text-dark' if stat.status == 'Принят'
+                         else 'bg-secondary'))) %}
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm border-0 h-100 {{ bg_class }}">
+                <div class="card-body">
+                    <h5 class="card-title">{{ stat.status }}</h5>
+                    <p class="card-text fs-1 fw-bold">{{ stat.count }}</p>
+                    <small>({{ "%.1f" | format(stat.count * 100 / total_period if total_period > 0 else 0) }}%)</small>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+</div>
+
+<h2 class="mt-5 mb-3">Детальний список</h2>
+<div class="table-responsive">
+    <table class="table table-striped table-hover shadow-sm">
+        <thead class="table-dark">
+            <tr>
+                <th>ID</th>
+                <th>Дата</th>
+                <th>Клієнт</th>
+                <th>Статус</th>
+                <th>Дії</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in detailed_records %}
+            <tr onclick="window.location='{{ url_for('view_record', record_id=record.id) }}';" style="cursor: pointer;">
+                <td>{{ record.id }}</td>
+                <td>{{ record.request_date }}</td>
+                <td>{{ record.client_name }}</td>
+                <td><span class="badge 
+                    {% if record.status == 'Исполнено' %}bg-success
+                    {% elif record.status == 'В работе' %}bg-warning text-dark
+                    {% elif record.status == 'Принят' %}bg-primary
+                    {% else %}bg-secondary
+                    {% endif %}">{{ record.status }}</span>
+                </td>
+                <td><a href="{{ url_for('view_record', record_id=record.id) }}" class="btn btn-sm btn-outline-info">
+                    <i class="bi bi-eye"></i> Перегляд
+                </a></td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="text-center text-muted">Немає записів, що відповідають фільтру.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

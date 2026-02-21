@@ -1,0 +1,253 @@
+{% extends "_base.html" %}
+{% block title %}ОЧ для {{ bank }}{% endblock %}
+{% block content %}
+<style>
+    .calc-card {
+        background: rgba(20, 20, 20, 0.8);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 24px;
+        padding: 2rem;
+    }
+    .result-main {
+        background: rgba(13, 110, 253, 0.1);
+        border: 1px dashed rgba(13, 110, 253, 0.5);
+        border-radius: 15px;
+    }
+    .total-highlight {
+        font-size: 2.5rem;
+        font-weight: 900;
+        /* Замінюємо градієнт на тексті на суцільний колір або градієнт фону */
+        color: #fff; /* Чорний текст для кращого контрасту на жовтому фоні */
+        border-radius: 12px;
+        padding: 10px 20px;
+        display: inline-block;
+        width: 100%;
+        text-shadow: none;
+        -webkit-background-clip: initial;
+        -webkit-text-fill-color: initial;
+    }
+</style>
+
+<div class="container mt-5" id="capture-area">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <div class="calc-card shadow-2xl text-white">
+                
+                <div class="d-flex justify-content-between mb-4 border-bottom border-secondary pb-3">
+                    <div>
+                        <h2 class="fw-bold mb-0">Миттєва розстрочка</h2>
+                        <div id="live-time" class="small text-muted mt-1"></div>
+                    </div>
+                    <button class="btn btn-outline-secondary btn-sm align-self-start" data-bs-toggle="modal" data-bs-target="#ratesModal">
+                        <i class="bi bi-sliders"></i> Ставки
+                    </button>
+                </div>
+
+                <div class="mb-4 text-center">
+                    <div class="btn-group w-100 shadow-sm">
+                        {% for bank in rates_json.keys() %}
+                        <button class="btn btn-outline-primary bank-btn py-3 fw-bold" onclick="selectBank('{{ bank }}')">
+                            {{ bank }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="row g-4 mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label text-white-50 small">Сума товару</label>
+                        <div class="input-group input-group-lg">
+                            <input type="number" id="total-amount" class="form-control bg-dark text-white border-secondary fw-bold" value="35000" oninput="calculate()">
+                            <span class="input-group-text bg-dark text-white-50 border-secondary">₴</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-white-50 small">Термін розстрочки</label>
+                        <select id="months-select" class="form-select form-select-lg bg-dark text-white border-secondary" onchange="calculate()">
+                            </select>
+                    </div>
+                </div>
+
+                <div class="result-main p-4 text-center mb-4">
+                    <div class="row mb-3">
+                        <div class="col-4">
+                            <small class="text-white-50 d-block">Щомісячно</small>
+                            <h4 id="monthly-payment" class="fw-bold mb-0 text-info">0 ₴</h4>
+                        </div>
+                        <div class="col-4 border-start border-end border-secondary border-opacity-50">
+                            <small class="text-white-50 d-block">Переплата</small>
+                            <h4 id="overpayment" class="fw-bold mb-0 text-warning">0 ₴</h4>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-white-50 d-block">Ставка</small>
+                            <h4 id="current-rate-display" class="fw-bold mb-0">0%</h4>
+                        </div>
+                    </div>
+                    
+                    <div class="pt-3 border-top border-secondary border-opacity-25">
+                        <small class="text-white-50">ФІНАЛЬНА СУМА ДО СПЛАТИ</small>
+                        <div id="final-total" class="total-highlight fw-black">0 ₴</div>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button class="btn btn-warning btn-lg fw-bold py-3 shadow" onclick="copyCalculator()">
+                        <i class="bi bi-camera-fill me-2"></i> Скорировать
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="ratesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg"> <div class="modal-content bg-dark text-white border-secondary">
+            <form action="{{ url_for('update_rates') }}" method="POST">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title"><i class=" me-2 text-warning"></i>Настройка сетки процентов ОЧ</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                    <p class="small text-muted mb-4"></p>
+                    
+                    {% for bank, months_data in rates_json.items() %}
+                    <div class="mb-4">
+                        <h6 class="text-primary fw-bold border-bottom border-secondary pb-2">{{ bank }}</h6>
+                        <div class="row g-2">
+                            {% for month, rate in months_data.items() | sort(attribute='0') %}
+                            <div class="col-md-4 col-6 mb-2">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-secondary text-white border-secondary" style="min-width: 65px;">
+                                        {{ month }} міс.
+                                    </span>
+                                    <input type="number" step="0.01" 
+                                           name="{{ bank }}_{{ month }}" 
+                                           value="{{ rate }}" 
+                                           class="form-control bg-dark text-white border-secondary text-center">
+                                    <span class="input-group-text bg-dark text-muted border-secondary">%</span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отменить</button>
+                    <button type="submit" class="btn btn-warning fw-bold px-4">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+<script>
+const allRates = {{ rates_json | tojson | safe }};
+let selectedBank = Object.keys(allRates)[0];
+
+// 1. Функція вибору банку
+function selectBank(name) {
+    if (!allRates[name]) return;
+    selectedBank = name;
+    const select = document.getElementById('months-select');
+    select.innerHTML = '';
+    
+    const availableMonths = Object.keys(allRates[name])
+        .map(Number)
+        .filter(m => m >= 3 && m <= 12)
+        .sort((a, b) => a - b);
+
+    availableMonths.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.innerText = m + " місяців";
+        select.appendChild(opt);
+    });
+
+    document.querySelectorAll('.bank-btn').forEach(b => {
+        const isSelected = b.innerText.trim() === name;
+        b.classList.toggle('active', isSelected);
+        b.classList.toggle('btn-primary', isSelected);
+    });
+    calculate();
+}
+
+// 2. Функція розрахунку
+function calculate() {
+    const amountInput = document.getElementById('total-amount');
+    const monthsSelect = document.getElementById('months-select');
+    const amount = parseFloat(amountInput.value) || 0;
+    const months = monthsSelect.value;
+    
+    const rate = (allRates[selectedBank] && allRates[selectedBank][months]) 
+                 ? allRates[selectedBank][months] 
+                 : 0;
+
+    const overpayment = (amount * (rate / 100)) * parseInt(months);
+    const total = amount + overpayment;
+    const monthly = total / parseInt(months);
+
+    document.getElementById('current-rate-display').innerText = rate + "%";
+    document.getElementById('monthly-payment').innerText = Math.round(monthly).toLocaleString('uk-UA') + " ₴";
+    document.getElementById('overpayment').innerText = Math.round(overpayment).toLocaleString('uk-UA') + " ₴";
+    document.getElementById('final-total').innerText = Math.round(total).toLocaleString('uk-UA') + " ₴";
+}
+
+// 3. ФУНКЦІЯ КОПІЮВАННЯ (Яку ми додали)
+async function copyCalculator() {
+    const area = document.getElementById('capture-area');
+    
+    // Візуальний відгук (показуємо, що процес пішов)
+    const btn = document.querySelector('button[onclick="copyCalculator()"]');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Створюю фото...';
+
+    try {
+        const canvas = await html2canvas(area, {
+            backgroundColor: '#121212', // Колір фону твого сайту
+            scale: 2,                  // Якість х2
+            useCORS: true
+        });
+
+        canvas.toBlob(async (blob) => {
+            try {
+                const item = new ClipboardItem({ "image/png": blob });
+                await navigator.clipboard.write([item]);
+                alert("✅ Фото розрахунку в буфері! Натискай Ctrl+V у Telegram.");
+            } catch (err) {
+                // Запасний варіант: якщо браузер блокує буфер через HTTP
+                const imgURL = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = imgURL;
+                link.download = `calc_${selectedBank}.png`;
+                link.click();
+                alert("📎 Браузер обмежив пряме копіювання. Фото завантажено на комп'ютер!");
+            }
+        });
+    } catch (error) {
+        console.error("Помилка скріншоту:", error);
+        alert("Не вдалося створити фото.");
+    } finally {
+        btn.innerHTML = originalText;
+    }
+}
+
+// 4. Оновлення часу
+function updateTime() {
+    const now = new Date();
+    const timeStr = now.toLocaleString('uk-UA', { 
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', 
+        hour: '2-digit', minute: '2-digit', second: '2-digit' 
+    });
+    const timeElem = document.getElementById('live-time');
+    if (timeElem) timeElem.innerText = timeStr;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (selectedBank) selectBank(selectedBank);
+    updateTime();
+    setInterval(updateTime, 1000);
+});
+</script>
+{% endblock %}

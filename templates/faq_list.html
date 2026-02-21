@@ -1,0 +1,44 @@
+{% extends "_base.html" %}
+
+{% block title %}База швидких відповідей (FAQ){% endblock %}
+
+{% block content %}
+<h1 class="mb-4">📚 FAQ </h1>
+
+<form method="GET" action="{{ url_for('faq_list') }}" class="d-flex mb-4">
+    <input class="form-control form-control-lg me-2" type="search" 
+           placeholder="Шукати відповідь..." name="faq_q" 
+           value="{{ search_term or '' }}">
+    <button class="btn btn-primary btn-lg" type="submit">
+        <i class="bi bi-search"></i>
+    </button>
+</form>
+
+<div class="accordion" id="faqAccordion">
+    {% for faq in faqs %}
+    <div class="accordion-item shadow-sm mb-2">
+        <h2 class="accordion-header" id="heading{{ faq.id }}">
+            <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" 
+                    data-bs-toggle="collapse" data-bs-target="#collapse{{ faq.id }}" 
+                    aria-expanded="{% if loop.first %}true{% else %}false{% endif %}" 
+                    aria-controls="collapse{{ faq.id }}">
+                {{ faq.title }}
+            </button>
+        </h2>
+        <div id="collapse{{ faq.id }}" class="accordion-collapse collapse {% if loop.first and not search_term %}show{% endif %}" 
+             aria-labelledby="heading{{ faq.id }}" data-bs-parent="#faqAccordion">
+            <div class="accordion-body">
+                {{ faq.content | safe }} 
+                <hr>
+                <form method="POST" action="{{ url_for('faq_delete', faq_id=faq.id) }}" class="text-end">
+                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Ви впевнені, що хочете видалити цю відповідь?');">
+                        Видалити
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% endblock %}

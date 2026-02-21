@@ -1,0 +1,147 @@
+{% extends "_base.html" %}
+
+{% block title %}Детали Записи №{{ record.id }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-md-10 col-12">
+        <h2 class="mb-4">Обращение №{{ record.id }} ({{ record.client_name }})</h2>
+        <div class="card shadow mb-4">
+            <div class="card-header bg-primary text-white">
+                Основные данные
+                <div class="float-end">
+                    <a href="{{ url_for('print_report', record_id=record.id) }}" class="btn btn-light btn-sm me-2"
+                        target="_blank">
+                        <i class="bi bi-printer"></i> Печать Акта готов
+                    </a>
+                    <a href="{{ url_for('print_intake_report', record_id=record.id) }}" class="btn btn-info btn-sm me-2" target="_blank">
+            <i class="bi bi-printer"></i> Печать акт прийом
+        </a>
+                    <a href="{{ url_for('edit_record', record_id=record.id) }}" class="btn btn-warning btn-sm me-2">
+                        <i class="bi bi-pencil-square"></i> Редактировать
+                    </a>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="confirmDelete({{ record.id }})">
+                        <i class="bi bi-trash"></i> Удалить
+                    </button>
+                </div>
+            </div>
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item"><strong>Клиент:</strong> {{ record.client_name }}</li>
+                                <li class="list-group-item">
+                    <strong>Телефон:</strong> 
+                    {% if record.client_phone %}
+                        <a href="tel:{{ record.client_phone }}" class="text-decoration-none">
+                            <i class="bi bi-telephone-fill me-1"></i> {{ record.client_phone }}
+                        </a>
+                    {% else %}
+                        Не указан
+                    {% endif %}
+                </li>
+                <li class="list-group-item">
+                    <strong>Telegram:</strong> 
+                    {% if record.client_telegram %}
+                        <a href="https://t.me/{{ record.client_telegram }}" target="_blank" class="text-decoration-none">
+                            <i class="bi bi-telegram me-1"></i> {{ record.client_telegram }}
+                        </a>
+                    {% else %}
+                        Не указан
+                    {% endif %}
+                </li>
+                <li class="list-group-item"><strong>Дата обращения:</strong> {{ record.request_date }}</li>
+                <li class="list-group-item"><strong>Дата выдачи ПК:</strong> {{ record.issue_date or 'Не указана' }}
+                </li>
+                <li class="list-group-item"><strong>№ Гар. Талона:</strong> {{ record.warranty_ticket_number or '—' }}
+                </li>
+                <li class="list-group-item"><strong>№ ТТН:</strong> {{ record.ttn_number or '—' }}</li>
+                <li class="list-group-item">
+                    <strong>Статус:</strong>
+                    <span class="badge 
+        {% if record.status == 'Исполнено' %}bg-success
+        {% elif record.status == 'Принят' %}bg-primary
+        {% elif record.status == 'В работе' %}bg-warning text-dark
+        {% elif record.status == 'Обработан' %}bg-purple {% else %}bg-secondary
+        {% endif %}">
+                        {{ record.status }}
+                    </span>
+                </li>
+            </ul>
+        </div>
+
+        <div class="card shadow mb-4">
+            <div class="card-header bg-secondary text-white">Описание проблемы и работ</div>
+            <div class="card-body">
+                <p><strong>Заявленная проблема:</strong><br>{{ record.claimed_problem or 'Нет данных' }}</p>
+                <hr>
+                <p><strong>Что продиагностировано:</strong><br>{{ record.diagnosed_problem or 'Нет данных' }}</p>
+                <hr>
+                <p><strong>Что заменено:</strong><br>{{ record.replaced_parts or 'Нет данных' }}</p>
+            </div>
+        </div>
+
+        <div class="card shadow mb-4">
+            <div class="card-header bg-info text-white">Прикрепленные фото ({{ photos|length }})</div>
+            <div class="card-body">
+                {% if photos %}
+                <div class="row">
+                    {% for photo in photos %}
+                    <div class="col-6 col-md-4 mb-3">
+                        <a href="{{ url_for('uploaded_file', filename=photo.file_path.split('/')[-1]) }}"
+                            target="_blank">
+                            <img src="{{ url_for('uploaded_file', filename=photo.file_path.split('/')[-1]) }}"
+                                class="img-fluid rounded" alt="Фото {{ loop.index }}">
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p>Фотографии не прикреплены.</p>
+                {% endif %}
+            </div>
+        </div>
+        <h3 class="mt-5 mb-3">Журнал Активности и Комментарии ({{ comments|length }})</h3>
+
+<div class="card shadow mb-4">
+    <div class="card-body">
+        
+        <form method="POST" action="{{ url_for('add_comment', record_id=record.id) }}" class="mb-4">
+            <h5 class="mb-3">Добавить заметку:</h5>
+            <textarea name="comment_text" class="form-control mb-2" rows="3" placeholder="Дата звонка, детали диагностики, напоминание и т.д." required></textarea>
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="bi bi-chat-dots"></i> Добавить в журнал
+            </button>
+        </form>
+        
+        <hr>
+        
+        <h5 class="mb-3">История:</h5>
+        <div class="list-group">
+            {% for comment in comments %}
+            <div class="list-group-item">
+                <div class="d-flex w-100 justify-content-between">
+                    <small class="text-muted">{{ comment.created_at.split('.')[0] }}</small>
+                </div>
+                <p class="mb-1 mt-2">{{ comment.comment_text }}</p>
+            </div>
+            {% else %}
+            <p class="text-muted">Для этой записи пока нет заметок в журнале.</p>
+            {% endfor %}
+        </div>
+        
+    </div>
+</div>
+        <div class="mt-3">
+            <a href="{{ url_for('service_list') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Вернуться к списку
+            </a>
+        </div>
+
+    </div>
+</div>
+<script>
+    function confirmDelete(recordId) {
+        if (confirm("Вы уверены, что хотите безвозвратно удалить эту запись №" + recordId + " и все связанные с ней файлы?")) {
+            window.location.href = "{{ url_for('delete_record', record_id=0) }}".replace('/0', '/' + recordId);
+        }
+    }
+</script>
+{% endblock %}
