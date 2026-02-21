@@ -11,6 +11,7 @@ def init_db():
 
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
+    
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS records (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -151,6 +152,15 @@ def init_db():
     #    "INSERT INTO audit_logs (user_name, action_type, target_table, target_id, details) VALUES (?, ?, ?, ?, ?)",
     #    (user, action, table, target_id, details)
     #)    
+    
+    cursor.execute('''CREATE TABLE IF NOT EXISTS speeches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category TEXT,
+    title TEXT,
+    content TEXT,
+    position INTEGER DEFAULT 0,
+    usage_count INTEGER DEFAULT 0
+    )''')
     conn.commit()
     conn.close()
 

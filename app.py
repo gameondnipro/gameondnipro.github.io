@@ -304,6 +304,43 @@ def update_price(comp_id, new_price):
 @app.route('/configurator/print_page')
 def print_page():
     return render_template('print_layout.html')
+# Спичи
+
+@app.route('/speeches')
+def speeches_list():
+    all_speeches = db_query("SELECT * FROM speeches ORDER BY category, position")
+    categorized = {}
+    for s in all_speeches:
+        categorized.setdefault(s['category'], []).append(s)
+    return render_template('speeches.html', speeches=categorized)
+
+@app.route('/speeches/save', methods=['POST'])
+def save_speech():
+    data = request.form
+    db_execute("INSERT INTO speeches (category, title, content, position) VALUES (?, ?, ?, ?)",
+               (data['category'], data['title'], data['content'], data['position'] or 0))
+    return redirect(url_for('speeches_list'))
+
+@app.route('/speeches/update/<int:speech_id>', methods=['POST'])
+def update_speech(speech_id):
+    data = request.form
+    db_execute("""
+        UPDATE speeches 
+        SET category = ?, title = ?, content = ?, position = ? 
+        WHERE id = ?
+    """, (data['category'], data['title'], data['content'], data['position'], speech_id))
+    return redirect(url_for('speeches_list'))
+
+@app.route('/speeches/delete/<int:speech_id>')
+def delete_speech(speech_id):
+    db_execute("DELETE FROM speeches WHERE id = ?", (speech_id,))
+    return redirect(url_for('speeches_list'))
+
+@app.route('/speeches/click/<int:speech_id>', methods=['POST'])
+def register_click(speech_id):
+    db_execute("UPDATE speeches SET usage_count = usage_count + 1 WHERE id = ?", (speech_id,))
+    return {"status": "ok"}
+
 
 
 # Настройки

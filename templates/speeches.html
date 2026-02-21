@@ -1,0 +1,270 @@
+{% extends "_base.html" %}
+{% block content %}
+<style>
+    .speech-card {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+    }
+    .speech-card:hover {
+        background: rgba(13, 110, 253, 0.15);
+        border-color: #0d6efd;
+        transform: translateY(-2px);
+    }
+    .speech-card:active { transform: scale(0.98); }
+    
+    .copy-icon {
+        position: absolute;
+        right: 10px;
+        top: 10px;
+        opacity: 0.3;
+    }
+    .category-title {
+        border-left: 4px solid #ffc107;
+        padding-left: 15px;
+        margin-bottom: 20px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    .usage-badge {
+        position: absolute;
+        bottom: 38px;
+        right: 5px;
+        font-size: 0.66rem;
+        padding: 2px 8px;
+        border-radius: 10px;
+        background: rgba(255, 193, 7, 0.1);
+        color: #ffc107;
+        display: none; 
+        pointer-events: none;
+    }
+    .hot-fire { color: #ff4500; animation: flicker 1.5s infinite; }
+    @keyframes flicker {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.6; }
+    }
+    #speechSearch:focus { box-shadow: 0 0 15px rgba(13, 110, 253, 0.5); }
+</style>
+
+<div class="container mt-4">
+    <div class="row align-items-center g-3 mb-4">
+        <div class="col-12 col-lg-3">
+            <h2 class="text-white m-0">Спичи</h2>
+        </div>
+
+        <div class="col-12 col-md-8 col-lg-6">
+            <div class="input-group">
+                <span class="input-group-text bg-dark border-info text-info">
+                    <i class="bi bi-search"></i>
+                </span>
+                <input type="text" id="speechSearch" class="form-control bg-dark text-white border-info" 
+                       placeholder="Быстрый поиск по названию или тексту..." onkeyup="filterSpeeches()">
+            </div>
+        </div>
+
+        <div class="col-12 col-md-4 col-lg-3 text-md-end d-flex align-items-center justify-content-md-end gap-3">
+            <div class="form-check form-switch text-muted small mb-0">
+                <input class="form-check-input" type="checkbox" id="statsToggle" onchange="toggleStats()">
+                <label class="form-check-label" for="statsToggle">🔥 Статы</label>
+            </div>
+            <button class="btn btn-warning fw-bold px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#addSpeechModal">
+                <i class="bi bi-plus-lg"></i> Добавить
+            </button>
+        </div>
+    </div>
+
+    <hr class="border-secondary opacity-25 mb-4">
+    {% for category, items in speeches.items() %}
+    <div class="mb-5">
+        <h5 class="text-warning category-title">{{ category }}</h5>
+        <div class="row row-cols-1 row-cols-md-3 g-3">
+    {% for speech in items %}
+    <div class="col">
+        <div class="speech-card p-3 h-100 position-relative" id="card-{{ speech.id }}">
+            <div onclick="copySpeech({{ speech.id }}, this)" style="cursor: pointer;">
+                <i class="bi bi-clipboard copy-icon" id="icon-{{ speech.id }}"></i>
+                <h6 class="text-light fw-bold mb-2 pe-4">{{ speech.title }}</h6>
+                <p class="text-muted small mb-0" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                    {{ speech.content }}
+                </p>
+                <textarea class="d-none" id="text-{{ speech.id }}">{{ speech.content }}</textarea>
+            </div>
+            <i class="usage-badge {% if speech.usage_count == 0 %}d-none-zero{% endif %}" id="badge-{{ speech.id }}">
+                <i class="bi bi-fire hot-fire"></i> 
+                <span class="count-val">{{ speech.usage_count }}</span>
+            </i>
+            <button class="btn btn-link btn-sm text-muted position-absolute bottom-0 end-0 m-1" 
+                    onclick="editSpeech({{ speech.id }}, '{{ speech.category }}', '{{ speech.title }}', {{ speech.position }})">
+                <i class="bi bi-pencil-square"></i>
+            </button>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="modal fade" id="addSpeechModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white border-secondary shadow-lg">
+            <form action="{{ url_for('save_speech') }}" method="POST">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title">Новый спич</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="small text-muted">Категория (напр. Оплата или Приветствие)</label>
+                        <input type="text" name="category" class="form-control bg-black text-white border-secondary" list="categories" required>
+                        <datalist id="categories">
+                            {% for cat in speeches.keys() %}<option value="{{ cat }}">{% endfor %}
+                        </datalist>
+                    </div>
+                    <div class="mb-3">
+                        <label class="small text-muted">Название кнопки</label>
+                        <input type="text" name="title" class="form-control bg-black text-white border-secondary" placeholder="Оплата частями Моно" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="small text-muted">Текст спича</label>
+                        <textarea name="content" class="form-control bg-black text-white border-secondary" rows="6" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="small text-muted">Позиция (сортировка)</label>
+                        <input type="number" name="position" class="form-control bg-black text-white border-secondary" value="0">
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="submit" class="btn btn-warning w-100 fw-bold">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleStats() {
+    const isVisible = document.getElementById('statsToggle').checked;
+    document.querySelectorAll('.usage-badge').forEach(b => {
+        if (isVisible && !b.classList.contains('d-none-zero')) {
+            b.style.display = 'block';
+        } else {
+            b.style.display = 'none';
+        }
+    });
+    localStorage.setItem('show_speech_stats', isVisible);
+}
+async function copySpeech(id, element) {
+    const textArea = document.getElementById('text-' + id);
+    const icon = document.getElementById('icon-' + id);
+    const card = document.getElementById('card-' + id);
+    const badge = document.getElementById('badge-' + id);
+    let finalSelection = textArea.value;
+    const variables = finalSelection.match(/\{(.+?)\}/g);
+    if (variables) {
+        for (const v of variables) {
+            const cleanVar = v.replace('{', '').replace('}', '');
+            const value = prompt(`Введіть значення для: ${cleanVar}`);
+            if (value !== null) { 
+                finalSelection = finalSelection.replaceAll(v, value);
+            }
+        }
+    }
+
+    const showSuccess = () => {
+        const originalBorder = card.style.borderColor;
+        card.style.borderColor = '#198754';
+        card.style.backgroundColor = 'rgba(25, 135, 84, 0.1)';
+        icon.className = 'bi bi-check2-all text-success copy-icon';
+        icon.style.opacity = '1';
+        
+        setTimeout(() => {
+            card.style.borderColor = originalBorder;
+            card.style.backgroundColor = '';
+            icon.className = 'bi bi-clipboard copy-icon';
+            icon.style.opacity = '0.3';
+        }, 1500);
+    };
+
+    if (navigator.clipboard && window.isSecureContext) {
+        try {
+            await navigator.clipboard.writeText(finalSelection);
+            showSuccess();
+        } catch (err) {
+            fallbackCopy(finalSelection, showSuccess);
+        }
+    } else {
+        fallbackCopy(finalSelection, showSuccess);
+    }
+    fetch(`/speeches/click/${id}`, { method: 'POST' });
+    
+    const countSpan = badge.querySelector('.count-val');
+    if (countSpan) {
+        let newCount = parseInt(countSpan.innerText) + 1;
+        countSpan.innerText = newCount;
+        if (newCount > 0) {
+            badge.classList.remove('d-none-zero');
+            if (document.getElementById('statsToggle').checked) {
+                badge.style.display = 'block';
+            }
+        }
+    }
+}
+function fallbackCopy(text, callback) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+        document.execCommand('copy');
+        callback();
+    } catch (err) {
+        alert('Ошибка копирования СРОЧНО ЗОВИ АРТЁМА.');
+    }
+    document.body.removeChild(textArea);
+}
+
+function editSpeech(id, category, title, position) {
+    const content = document.getElementById('text-' + id).value;
+    const modalElement = document.getElementById('addSpeechModal');
+    const modal = new bootstrap.Modal(modalElement);
+    const form = modalElement.querySelector('form');
+    
+    form.action = '/speeches/update/' + id;
+    modalElement.querySelector('.modal-title').innerText = 'Поменять спич';
+    modalElement.querySelector('[name="category"]').value = category;
+    modalElement.querySelector('[name="title"]').value = title;
+    modalElement.querySelector('[name="content"]').value = content;
+    modalElement.querySelector('[name="position"]').value = position;
+    
+    if (!document.getElementById('delete-speech-btn')) {
+        const deleteBtn = document.createElement('a');
+        deleteBtn.id = 'delete-speech-btn';
+        deleteBtn.className = 'btn btn-outline-danger';
+        deleteBtn.innerText = 'Удалить';
+        modalElement.querySelector('.modal-footer').prepend(deleteBtn);
+    }
+    document.getElementById('delete-speech-btn').href = '/speeches/delete/' + id;
+    
+    modal.show();
+}
+function filterSpeeches() {
+    let input = document.getElementById('speechSearch').value.toLowerCase();
+    let cards = document.querySelectorAll('.col'); 
+    cards.forEach(card => {
+        let text = card.innerText.toLowerCase();
+        card.style.display = text.includes(input) ? "" : "none";
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const saved = localStorage.getItem('show_speech_stats') === 'true';
+    document.getElementById('statsToggle').checked = saved;
+    if(saved) toggleStats();
+});
+</script>
+{% endblock %}
