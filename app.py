@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, sen
 from werkzeug.utils import secure_filename
 from werkzeug.serving import run_simple
 from flask import send_file
+from flask_compress import Compress
 import os
 import random
 import shutil 
@@ -14,8 +15,11 @@ from database import init_db, db_query, db_execute, UPLOAD_FOLDER, DATE_FORMAT, 
 from datetime import datetime
 
 app = Flask(__name__)
+Compress(app)
 app.secret_key = os.environ.get('SECRET_KEY', 'your_super_secret_key_default') 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 SECRET_PASSWORD = "838995" 
@@ -27,31 +31,21 @@ def generate_ticket_number():
     return f"TBR-{random_part}"
 
 def save_photos(record_id, files):
-   
     saved_paths = []
     for file in files:
         if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            timestamp = int(datetime.now().timestamp())
-           
-            new_filename = f"{record_id}_{timestamp}_{filename}" 
-            
-            
-            fs_file_path = os.path.join(app.config['UPLOAD_FOLDER'], new_filename)
-            
-           
-            db_file_path = fs_file_path.replace(os.sep, '/')
+            ext = file.filename.rsplit('.', 1)[1].lower()
+            new_filename = f"{record_id}_{int(datetime.now().timestamp())}_{random.randint(10,99)}.{ext}"
+            fs_path = os.path.join(app.config['UPLOAD_FOLDER'], new_filename)
             
             try:
-                file.save(fs_file_path) 
-                
-                
+                file.save(fs_path)
+                db_file_path = f"uploads/{new_filename}" 
                 db_execute("INSERT INTO photos (record_id, file_path) VALUES (?, ?)", 
                            (record_id, db_file_path))
                 saved_paths.append(db_file_path)
             except Exception as e:
-                print(f"Ошибка сохранения файла {new_filename}: {e}")
-                
+                print(f"Ошибка сохранения: {e}")
     return saved_paths
 
 def db_vacuum():
@@ -66,39 +60,45 @@ def db_vacuum():
         return False
     finally:
         conn.close()
-def get_exchange_rates():
-    try:
-        response = requests.get('https://api.privatbank.ua/p24api/pubinfo?exchange&coursid=5', timeout=2000)
-        data = response.json()
         
-        rates = {}
+        
+
+_rates_cache = {'data': {'usd': '??', 'usdt': '??'}, 'expires': None}
+
+def get_exchange_rates():
+    global _rates_cache
+    now = datetime.now()
+    if _rates_cache['expires'] and now < _rates_cache['expires']:
+        return _rates_cache['data']
+
+    try:
+        response = requests.get('https://api.privatbank.ua/p24api/pubinfo?exchange&coursid=5', timeout=2)
+        data = response.json()
         for item in data:
             if item['ccy'] == 'USD':
-                rates['usd'] = round(float(item['buy']), 2)
+                usd = round(float(item['buy']), 2)
+                _rates_cache['data'] = {'usd': usd, 'usdt': round(usd + 0.50, 2)}
+                _rates_cache['expires'] = now + timedelta(hours=1)
+                break
+    except Exception:
+        pass
         
-        rates['usdt'] = rates['usd'] + 0.50 
-        return rates
-    except:
-        return {'usd': '??', 'usdt': '??'}
+    return _rates_cache['data']
 
 @app.context_processor
 def inject_rates():
     return dict(rates=get_exchange_rates())
 
 
-@app.route('/settings')
-def settings_page():
-    return render_template('settings.html')
 
 
-# 1. Страница со списком заказов
+# --- СРОЧНЯКИ --- 
 @app.route('/urgent')
 def urgent_orders():
 
     orders = db_query("SELECT * FROM urgent_orders ORDER BY deadline ASC")
     return render_template('urgent.html', orders=orders)
 
-# 2. Добавление нового заказа
 @app.route('/urgent/add', methods=['POST'])
 def add_urgent_order():
     data = request.form
@@ -115,7 +115,6 @@ def add_urgent_order():
     ))
     return redirect(url_for('urgent_orders'))
 
-# 3. Кнопка "Ракета" (быстрая смена статуса)
 @app.route('/urgent/next_status/<int:order_id>', methods=['POST'])
 def next_status(order_id):
     stages = ['В очереди', 'Сборка', 'Тестирование', 'Готов к выдаче']
@@ -137,7 +136,6 @@ def next_status(order_id):
     except ValueError:
         return {"status": "error"}, 400
 
-# 4. Удаление заказа (когда забрали)
 @app.route('/urgent/delete/<int:order_id>')
 def delete_urgent_order(order_id):
     db_execute("DELETE FROM urgent_orders WHERE id = ?", (order_id,))
@@ -253,53 +251,52 @@ def global_search():
     
     if len(q) < 2:
         return redirect(request.referrer or '/')
+    search_param = f'%{q.lower()}%'
     
+    # 1. Сервис 
     service_sql = """
         SELECT id, client_name as title, 'Сервис' as category, 
                status || ' | ' || claimed_problem as info, 
                '/service/record/' || id as link 
         FROM records 
-        WHERE client_name LIKE ? 
+        WHERE LOWER(client_name) LIKE ? 
            OR client_phone LIKE ? 
-           OR client_telegram LIKE ? 
-           OR warranty_ticket_number LIKE ? 
-           OR ttn_number LIKE ? 
-           OR id = ?
+           OR LOWER(client_telegram) LIKE ? 
+           OR LOWER(warranty_ticket_number) LIKE ? 
+           OR LOWER(ttn_number) LIKE ? 
+           OR id = CAST(? AS INTEGER)
     """
-    search_param = f'%{q}%'
     service_res = db_query(service_sql, (search_param, search_param, search_param, search_param, search_param, q))
 
-
+    # 2. Корпуса 
     cases_sql = """
         SELECT id, name as title, 'Корпуса' as category, 
                price || ' грн | ' || color as info, '/cases' as link 
         FROM pc_cases 
-        WHERE name LIKE ? OR color LIKE ?
+        WHERE LOWER(name) LIKE ? OR LOWER(color) LIKE ?
     """
     cases_res = db_query(cases_sql, (search_param, search_param))
 
-
+    # 3. ТТН
     ttn_sql = """
         SELECT id, number as title, 'НП ТТН' as category, 
                client_name || ' | ' || amount || ' грн' as info, '/ttn' as link 
         FROM ttn 
-        WHERE number LIKE ? OR client_name LIKE ? OR note LIKE ?
+        WHERE number LIKE ? OR LOWER(client_name) LIKE ? OR LOWER(note) LIKE ?
     """
     ttn_res = db_query(ttn_sql, (search_param, search_param, search_param))
 
-
+    # 4. Задачи
     tasks_sql = """
         SELECT id, title, 'Завдання' as category, 
                status || ' | Пріоритет: ' || priority as info, '/tasks' as link 
         FROM tasks 
-        WHERE title LIKE ? OR description LIKE ?
+        WHERE LOWER(title) LIKE ? OR LOWER(description) LIKE ?
     """
     tasks_res = db_query(tasks_sql, (search_param, search_param))
 
     results = service_res + cases_res + ttn_res + tasks_res
-    
     return render_template('search_results.html', results=results, query=q)
-
 @app.route('/installment')
 def installment_calc():
     raw_rates = db_query("SELECT * FROM bank_rates")
@@ -327,7 +324,7 @@ def update_rates():
             except ValueError:
                 continue
                 
-    flash("Всі відсоткові ставки успішно оновлено!", "success")
+    flash("Проценты обновлено", "success")
     return redirect(url_for('installment_calc'))
 
 
@@ -399,6 +396,10 @@ def register_click(speech_id):
 
 
 # Настройки
+
+@app.route('/settings')
+def settings_page():
+    return render_template('settings.html')
 
 @app.route('/settings/export')
 def export_database():
@@ -787,13 +788,12 @@ def edit_record(record_id):
                 'status': request.form.get('status', 'Принят')
             }
             
-            set_clause = ', '.join([f'"{col}" = ?' for col in data.keys()])
+            query = f"UPDATE records SET {', '.join([f'{k}=?' for k in data.keys()])} WHERE id=?"
+            params = list(data.values()) + [record_id]
+
+            db_execute(query, params)
             
-            update_query = f"UPDATE records SET {set_clause} WHERE id = ?"
-            
-            params = tuple(data.values()) + (record_id,)
-            
-            db_execute(update_query, params)
+            #db_execute(update_query, params)
 
             files = request.files.getlist('photos')
             if files:
@@ -951,7 +951,14 @@ def view_audit():
 
 @app.errorhandler(404)
 def page_not_found(e):
-    return render_template('404.html'), 404
+    return render_template('404.html', error=str(e)), 404
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    app.logger.error(f"Глобальная ошибка: {e}")
+    return render_template("404.html", error=str(e)), 500
+
+
 
 """if __name__ == '__main__':
     

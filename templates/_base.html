@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru" data-bs-theme="light">
+<html lang="ru" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -37,6 +37,10 @@
     [data-bs-theme="light"] { --bs-body-bg: #f7f7f9; --bs-navbar-bg: rgba(255, 255, 255, 0.85) !important; }
 </style>
 </head>
+<script>
+    const theme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-bs-theme', theme);
+</script>
 <body>
 
 <nav class="navbar navbar-expand-lg bg-dark border-bottom border-secondary shadow-sm" data-bs-theme="dark">
@@ -134,23 +138,23 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-
     const toggleTheme = (theme) => {
         document.documentElement.setAttribute('data-bs-theme', theme);
         localStorage.setItem('theme', theme);
+        
         const icon = document.getElementById('theme-toggle-icon');
-        icon.className = theme === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+        if (icon) {
+            icon.className = theme === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+        }
     };
 
     document.getElementById('theme-toggle-btn').addEventListener('click', () => {
-        const newTheme = document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
+        const currentTheme = document.documentElement.getAttribute('data-bs-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
         toggleTheme(newTheme);
     });
-
-
-    window.addEventListener('load', () => {
-        toggleTheme(localStorage.getItem('theme') || 'light');
-    });
+    const savedTheme = localStorage.getItem('theme') || 'dark'; 
+    toggleTheme(savedTheme);
 </script>
 </body>
 </html>

@@ -1,138 +1,43 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your PC ran into a problem</title>
-    
+    <title>Ошибка</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <style>
-        body {
-            background: #0078D7; 
-            color: #FFFFFF;
-            font-family: 'Segoe UI', Arial, sans-serif; 
-            font-size: 16px;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            overflow: hidden; 
-        }
-        .bsod-container {
-            width: 90%;
-            max-width: 900px; 
-            padding: 40px;
-            text-align: left;
-        }
-        .bsod-smiley {
-            font-size: 15vw; 
-            line-height: 1;
-            margin-bottom: 5vh; 
-            display: block;
-        }
-        .bsod-main-text {
-            font-size: 2.8vw; 
-            line-height: 1.3;
-            margin-bottom: 5vh;
-            max-width: 80%; 
-        }
-        .bsod-progress {
-            font-size: 1.8vw;
-            margin-bottom: 7vh;
-        }
-        .bsod-info {
-            display: flex;
-            align-items: flex-start; 
-        }
-        .bsod-qr-code {
-            width: 150px; 
-            height: 150px;
-            margin-right: 40px;
-            flex-shrink: 0; 
-        }
-        .bsod-details p {
-            font-size: 1.1em;
-            margin-bottom: 10px;
-        }
-        .bsod-details strong {
-            font-weight: bold;
-        }
-        .bsod-link {
-            color: #FFFFFF;
-            text-decoration: underline;
-            transition: background 0.2s;
-            font-weight: bold;
-        }
-        .bsod-link:hover {
-            background: #FFFFFF;
-            color: #0078D7;
-            text-decoration: none;
-            cursor: pointer;
-        }
-        @media (max-width: 768px) {
-            .bsod-smiley {
-                font-size: 25vw;
-                margin-bottom: 3vh;
-            }
-            .bsod-main-text {
-                font-size: 4vw;
-                margin-bottom: 3vh;
-                max-width: 100%;
-            }
-            .bsod-progress {
-                font-size: 2.5vw;
-                margin-bottom: 5vh;
-            }
-            .bsod-info {
-                flex-direction: column; 
-            }
-            .bsod-qr-code {
-                width: 100px;
-                height: 100px;
-                margin-bottom: 20px;
-                margin-right: 0;
-            }
-        }
+        body { background-color: #291919; color: #f3f3f3; height: 100vh; display: flex; align-items: center; }
+        .error-card { max-width: 600px; margin: auto; padding: 40px; background: rgb(17, 17, 17); border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-left: 5px solid #dc3545; }
+        .error-code { font-size: 72px; font-weight: bold; color: #dc3545; line-height: 1; }
+        .error-msg { font-size: 18px; margin: 20px 0; color: #d6d6d6; }
+        .btn-home { background-color: #740000; color: white; border-radius: 5px; padding: 10px 25px; text-decoration: none; transition: 0.3s; }
+        .btn-home:hover { background-color: #00b32d; color: white; }
+        .tech-details { font-family: monospace; font-size: 12px; background: #575757; padding: 10px; margin-top: 20px; border-radius: 5px; text-align: left; overflow-x: auto; }
     </style>
 </head>
 <body>
-    <div class="bsod-container">
-        <span class="bsod-smiley">:(</span>
+
+<div class="container text-center">
+    <div class="error-card">
+        <div class="error-code">⚠️</div>
+        <h1 class="mt-3">АШЫБКА ЧТРИСТА ЧТЫРЕ (404) ((АРТЁМ ЛОХ))</h1>
         
-        <p class="bsod-main-text">
-            Your PC ran into a problem and needs to restart. We're just collecting some<br>
-            error info, and then we'll restart for you.
+        <p class="error-msg">
+            Не ссать, вернись назад и пока сюда не заходим)))))))))00))))))000))0
         </p>
 
-        <p class="bsod-progress">
-            0% complete
-        </p>
-        
-        <div class="bsod-info">
-            <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://support.microsoft.com/en-us/windows/troubleshoot-blue-screen-errors-5c62186c-558a-a43b-a536-193946274026" 
-                 alt="QR Code" 
-                 class="bsod-qr-code">
-            
-            <div class="bsod-details">
-                <p>
-                    For more information about this issue and possible fixes, visit<br>
-                    <a href="https://support.microsoft.com/en-us/windows/troubleshoot-blue-screen-errors-5c62186c-558a-a43b-a536-193946274026" 
-                       target="_blank" class="bsod-link">https://www.microsoft.com/stopcode</a>
-                </p>
-                <p>
-                    If you call a support person, give them this info:<br>
-                    Stop code: CRITICAL_PROCESS_DIED
-                </p>
-                <p>
-                    <br>
-                    <strong>Press any key to return to the last known stable state:</strong><br>
-                    <a href="{{ url_for('service_list') }}" class="bsod-link">[ RETURN TO LIST ]</a>
-                    <a href="javascript:history.back()" class="bsod-link">[ GO BACK ]</a>
-                    <a href="{{ url_for('dashboard') }}" class="bsod-link">[ DASHBOARD ]</a>
-                </p>
-            </div>
+        {% if error %}
+        <div class="tech-details">
+            <strong>Техническая информация:</strong><br>
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <div class="mt-4">
+            <a href="{{ url_for('hub') }}" class="btn-home">Вернуться на главную</a>
         </div>
     </div>
+</div>
+
 </body>
 </html>
