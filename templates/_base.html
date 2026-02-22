@@ -3,52 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Service Hub{% endblock %} | Game ON {{ request.endpoint }}</title>
+    <title>{% block title %}Service Hub{% endblock %} | Game ON</title>
 
     <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32x32.png') }}">
     <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
-    <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<style>
-    :root { 
-        --bs-border-radius-sm: 0.5rem; 
-        --bs-border-radius: 0.75rem; 
-    
-    
-    }
-    .navbar {
-        position: fixed; top: 0; left: 0; right: 0;
-        backdrop-filter: blur(10px);
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        z-index: 1050; border-radius: 0 0 10px 10px;
-    }
-    body { padding-top: 75px; background-color: var(--bs-body-bg); }
-    .nav-divider { width: 1px; background-color: var(--bs-border-color); height: 25px; margin: 0 10px; opacity: 0.5; }
-    
 
-    .rate-box { line-height: 1; text-align: center; }
-    .rate-label { font-size: 0.65rem; color: var(--bs-secondary-color); text-transform: uppercase; }
-    .rate-value { font-size: 0.9rem; font-weight: bold; }
+    <style>
+        :root { 
+            --bs-border-radius: 0.75rem;
+            --bs-border-radius-sm: 0.75rem;
+            --transition-speed: 0.25s;
+        }
+        [data-bs-theme="dark"] {
+            --bs-body-bg: #121212;
+            --bs-surface-bg: #1e1e1e;
+            --nav-bg: rgba(30, 30, 30, 0.8);
+        }
+        [data-bs-theme="light"] {
+            --bs-body-bg: #f8f9fa;
+            --bs-surface-bg: #ffffff;
+            --nav-bg: rgba(255, 255, 255, 0.85);
+        }
 
-    [data-bs-theme="dark"] { --bs-body-bg: #1e1e1e; --bs-navbar-bg: rgba(30, 30, 30, 0.9) !important; }
-    [data-bs-theme="light"] { --bs-body-bg: #f7f7f9; --bs-navbar-bg: rgba(255, 255, 255, 0.85) !important; }
-</style>
+        body { 
+            padding-top: 85px; 
+            background-color: var(--bs-body-bg);
+            transition: background-color var(--transition-speed) ease;
+        }
+
+        .navbar {
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            background-color: var(--nav-bg) !important;
+            border-bottom: 1px solid var(--bs-border-color-translucent) !important;
+            transition: background-color var(--transition-speed) ease;
+        }
+
+        .nav-link {
+            font-weight: 500;
+            transition: color var(--transition-speed);
+        }
+
+        .nav-divider { 
+            width: 1px; 
+            background-color: var(--bs-border-color); 
+            height: 20px; 
+            margin: 0 12px; 
+            opacity: 0.3; 
+        }
+        .rate-box { 
+            padding: 2px 8px;
+            border-radius: var(--bs-border-radius-sm);
+            transition: transform 0.2s;
+        }
+        .rate-box:hover { transform: translateY(-2px); }
+        .rate-label { font-size: 0.6rem; color: var(--bs-secondary-color); text-transform: uppercase; letter-spacing: 0.5px; }
+        .rate-value { font-size: 0.95rem; font-weight: 700; font-family: 'Monaco', 'Consolas', monospace; }
+
+        .alert {
+            border: none;
+            border-radius: var(--bs-border-radius);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        [data-bs-theme="dark"] ::-webkit-scrollbar { width: 8px; }
+        [data-bs-theme="dark"] ::-webkit-scrollbar-track { background: #121212; }
+        [data-bs-theme="dark"] ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        [data-bs-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #444; }
+    </style>
+
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+        })();
+    </script>
 </head>
-<script>
-    const theme = localStorage.getItem('theme') || 'dark';
-    document.documentElement.setAttribute('data-bs-theme', theme);
-</script>
 <body>
 
-<nav class="navbar navbar-expand-lg bg-dark border-bottom border-secondary shadow-sm" data-bs-theme="dark">
+<nav class="navbar navbar-expand-lg fixed-top shadow-sm">
     <div class="container-fluid px-4">
         <a class="navbar-brand fw-bold d-flex align-items-center" href="{{ url_for('hub') }}">
             <i class="bi bi-cpu-fill me-2 text-primary"></i>
             <span class="text-primary">Game</span>&nbsp;<span class="text-info">ON</span>
-            <span class="text-muted mx-2">|</span>
+            <span class="text-muted mx-2" style="font-weight: 200;">|</span>
             <span class="text-danger">X</span>
         </a>
 
@@ -59,8 +100,8 @@
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav me-auto align-items-center">
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('hub') }}">
-                        <span class="text-muted small">Porn</span><span class="text-warning small">Hub</span>
+                    <a class="nav-link d-flex align-items-center" href="{{ url_for('hub') }}">
+                        <span class="badge bg-warning text-dark fw-bold" style="font-size: 0.7rem; padding: 3px 6px;">HUB</span>
                     </a>
                 </li>
                 
@@ -74,87 +115,110 @@
                     <li class="nav-divider d-none d-lg-block"></li>
                     <li class="nav-item"><a class="nav-link px-2" href="{{ url_for('ttn_list') }}">НП ТТН</a></li>
                 {% endif %}
+                {% if request.endpoint == 'cases_gallery' %}
+                    <li class="nav-divider d-none d-lg-block"></li>
+                    <li class="nav-item">
+                    <a class="nav-link px-2" href="{{ url_for('cases_gallery') }}">Корпуса</a>
+                    </li>
+                {% endif %}
             </ul>
 
             <div class="d-flex flex-column flex-lg-row align-items-center gap-3">
-                
                 <div class="d-flex align-items-center">
                     {% if request.endpoint in ['service_list', 'dashboard', 'view_record'] %}
-                        <a class="btn btn-success btn-sm fw-bold px-3 shadow-sm" href="{{ url_for('add_record') }}">
-                            <i class="bi bi-plus-lg me-1"></i> <span>Добавить запись</span>
+                        <a class="btn btn-success btn-sm fw-bold px-3 rounded-pill shadow-sm" href="{{ url_for('add_record') }}">
+                            <i class="bi bi-plus-lg me-1"></i> Добавить запись
                         </a>
                     {% elif request.endpoint == 'ttn_list' %}
-                        <button class="btn btn-primary btn-sm fw-bold px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#addTtnModal">
-                            <i class="bi bi-plus-lg me-1"></i> <span>Добавить запись</span>
+                        <button class="btn btn-primary btn-sm fw-bold px-3 rounded-pill shadow-sm" data-bs-toggle="modal" data-bs-target="#addTtnModal">
+                            <i class="bi bi-plus-lg me-1"></i> Добавить ТТН
                         </button>
                     {% elif request.endpoint == 'cases_gallery' %}
-                        <button class="btn btn-info btn-sm fw-bold px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#addCaseModal">
-                            <i class="bi bi-plus-lg me-1"></i> <span>Добавить запись</span>
-                        </button>
-                    {% endif %}
-                </div>
-
-                <div class="btn-group shadow-sm">
-                    <button id="theme-toggle-btn" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-moon-stars-fill" id="theme-toggle-icon"></i>
+                    <button class="btn btn-info btn-sm fw-bold px-3 rounded-pill shadow-sm text-dark" data-bs-toggle="modal" data-bs-target="#addCaseModal">
+                    <i class="bi bi-plus-lg me-1"></i> Добавить корпус
                     </button>
-                    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('faq_list') }}"><i class="bi bi-question-circle-fill"></i></a>
-                    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('settings_page') }}"><i class="bi bi-gear-fill"></i></a>
+                {% endif %}
                 </div>
 
-                <form action="{{ url_for('global_search') }}" method="GET" style="max-width: 200px;">
+
+
+                <form action="{{ url_for('global_search') }}" method="GET" class="position-relative">
                     <div class="input-group input-group-sm">
-                        <span class="input-group-text bg-dark border-secondary text-muted"><i class="bi bi-search"></i></span>
-                        <input class="form-control bg-dark text-white border-secondary shadow-none" 
-                               type="search" name="q" placeholder="Поиск..." aria-label="Search">
+                        <span class="input-group-text bg-transparent border-secondary text-muted"><i class="bi bi-search"></i></span>
+                        <input class="form-control bg-transparent border-secondary shadow-none" 
+                               style="width: 160px;" type="search" name="q" placeholder="Поиск..." required>
                     </div>
                 </form>
 
-                <div class="d-flex align-items-center gap-3 border-start border-secondary ps-3">
+                <div class="d-flex align-items-center gap-2 border-start border-secondary ps-3 ms-lg-2">
                     <div class="rate-box">
                         <div class="rate-label">USD</div>
-                        <div class="rate-value text-white">{{ rates.usd }}</div>
+                        <div class="rate-value">{{ rates.usd }}</div>
                     </div>
                     <div class="rate-box">
                         <div class="rate-label">USDT</div>
-                        <div class="rate-value text-white">{{ rates.usdt }}</div>
+                        <div class="rate-value text-info">{{ rates.usdt }}</div>
                     </div>
+                </div>
+                <div class="btn-group shadow-sm">
+                <button id="theme-toggle-btn" class="btn btn-outline-secondary btn-sm" title="Сменить тему">
+                    <i class="bi bi-moon-stars-fill" id="theme-toggle-icon"></i>
+                </button>
+                <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('settings_page') }}"><i class="bi bi-gear-fill"></i></a>
                 </div>
             </div>
         </div>
     </div>
 </nav>
 
-<div class="container">
+<div class="container pb-5">
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }} mt-3" role="alert">{{ message }}</div>
-            {% endfor %}
+            <div id="flash-container">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show mt-3" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            </div>
         {% endif %}
     {% endwith %}
+
     {% block content %}{% endblock %}
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    const toggleTheme = (theme) => {
+    const themeToggleBtn = document.getElementById('theme-toggle-btn');
+    const themeToggleIcon = document.getElementById('theme-toggle-icon');
+
+    function updateTheme(theme) {
         document.documentElement.setAttribute('data-bs-theme', theme);
         localStorage.setItem('theme', theme);
         
-        const icon = document.getElementById('theme-toggle-icon');
-        if (icon) {
-            icon.className = theme === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+        if (themeToggleIcon) {
+            themeToggleIcon.className = theme === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
         }
-    };
+        const navbar = document.querySelector('.navbar');
+        navbar.setAttribute('data-bs-theme', theme);
+    }
 
-    document.getElementById('theme-toggle-btn').addEventListener('click', () => {
-        const currentTheme = document.documentElement.getAttribute('data-bs-theme');
-        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        toggleTheme(newTheme);
+    themeToggleBtn.addEventListener('click', () => {
+        const newTheme = document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
+        updateTheme(newTheme);
     });
-    const savedTheme = localStorage.getItem('theme') || 'dark'; 
-    toggleTheme(savedTheme);
+    window.addEventListener('DOMContentLoaded', () => {
+        const currentTheme = document.documentElement.getAttribute('data-bs-theme');
+        updateTheme(currentTheme);
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(alert => {
+            setTimeout(() => {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }, 5000);
+        });
+    });
 </script>
 </body>
 </html>

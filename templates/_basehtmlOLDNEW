@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ru" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Service Hub{% endblock %} | Game ON {{ request.endpoint }}</title>
+
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+    :root { 
+        --bs-border-radius-sm: 0.5rem; 
+        --bs-border-radius: 0.75rem; 
+    
+    
+    }
+    .navbar {
+        position: fixed; top: 0; left: 0; right: 0;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        z-index: 1050; border-radius: 0 0 10px 10px;
+    }
+    body { padding-top: 75px; background-color: var(--bs-body-bg); }
+    .nav-divider { width: 1px; background-color: var(--bs-border-color); height: 25px; margin: 0 10px; opacity: 0.5; }
+    
+
+    .rate-box { line-height: 1; text-align: center; }
+    .rate-label { font-size: 0.65rem; color: var(--bs-secondary-color); text-transform: uppercase; }
+    .rate-value { font-size: 0.9rem; font-weight: bold; }
+
+    [data-bs-theme="dark"] { --bs-body-bg: #1e1e1e; --bs-navbar-bg: rgba(30, 30, 30, 0.9) !important; }
+    [data-bs-theme="light"] { --bs-body-bg: #f7f7f9; --bs-navbar-bg: rgba(255, 255, 255, 0.85) !important; }
+</style>
+</head>
+<script>
+    const theme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-bs-theme', theme);
+</script>
+<body>
+
+<nav class="navbar navbar-expand-lg bg-dark border-bottom border-secondary shadow-sm" data-bs-theme="dark">
+    <div class="container-fluid px-4">
+        <a class="navbar-brand fw-bold d-flex align-items-center" href="{{ url_for('hub') }}">
+            <i class="bi bi-cpu-fill me-2 text-primary"></i>
+            <span class="text-primary">Game</span>&nbsp;<span class="text-info">ON</span>
+            <span class="text-muted mx-2">|</span>
+            <span class="text-danger">X</span>
+        </a>
+
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto align-items-center">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('hub') }}">
+                        <span class="text-muted small">Porn</span><span class="text-warning small">Hub</span>
+                    </a>
+                </li>
+                
+                {% if request.endpoint in ['service_list', 'view_record', 'dashboard', 'add_record', 'edit_record'] %}
+                    <li class="nav-divider d-none d-lg-block"></li>
+                    <li class="nav-item"><a class="nav-link px-2" href="{{ url_for('dashboard') }}">Дэшборд</a></li>
+                    <li class="nav-item"><a class="nav-link px-2" href="{{ url_for('service_list') }}">Сервіс</a></li>
+                {% endif %}
+
+                {% if request.endpoint in ['ttn_list'] %}
+                    <li class="nav-divider d-none d-lg-block"></li>
+                    <li class="nav-item"><a class="nav-link px-2" href="{{ url_for('ttn_list') }}">НП ТТН</a></li>
+                {% endif %}
+            </ul>
+
+            <div class="d-flex flex-column flex-lg-row align-items-center gap-3">
+                
+                <div class="d-flex align-items-center">
+                    {% if request.endpoint in ['service_list', 'dashboard', 'view_record'] %}
+                        <a class="btn btn-success btn-sm fw-bold px-3 shadow-sm" href="{{ url_for('add_record') }}">
+                            <i class="bi bi-plus-lg me-1"></i> <span>Добавить запись</span>
+                        </a>
+                    {% elif request.endpoint == 'ttn_list' %}
+                        <button class="btn btn-primary btn-sm fw-bold px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#addTtnModal">
+                            <i class="bi bi-plus-lg me-1"></i> <span>Добавить запись</span>
+                        </button>
+                    {% elif request.endpoint == 'cases_gallery' %}
+                        <button class="btn btn-info btn-sm fw-bold px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#addCaseModal">
+                            <i class="bi bi-plus-lg me-1"></i> <span>Добавить запись</span>
+                        </button>
+                    {% endif %}
+                </div>
+
+                <div class="btn-group shadow-sm">
+                    <button id="theme-toggle-btn" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-moon-stars-fill" id="theme-toggle-icon"></i>
+                    </button>
+                    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('faq_list') }}"><i class="bi bi-question-circle-fill"></i></a>
+                    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('settings_page') }}"><i class="bi bi-gear-fill"></i></a>
+                </div>
+
+                <form action="{{ url_for('global_search') }}" method="GET" style="max-width: 200px;">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-dark border-secondary text-muted"><i class="bi bi-search"></i></span>
+                        <input class="form-control bg-dark text-white border-secondary shadow-none" 
+                               type="search" name="q" placeholder="Поиск..." aria-label="Search">
+                    </div>
+                </form>
+
+                <div class="d-flex align-items-center gap-3 border-start border-secondary ps-3">
+                    <div class="rate-box">
+                        <div class="rate-label">USD</div>
+                        <div class="rate-value text-white">{{ rates.usd }}</div>
+                    </div>
+                    <div class="rate-box">
+                        <div class="rate-label">USDT</div>
+                        <div class="rate-value text-white">{{ rates.usdt }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} mt-3" role="alert">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const toggleTheme = (theme) => {
+        document.documentElement.setAttribute('data-bs-theme', theme);
+        localStorage.setItem('theme', theme);
+        
+        const icon = document.getElementById('theme-toggle-icon');
+        if (icon) {
+            icon.className = theme === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+        }
+    };
+
+    document.getElementById('theme-toggle-btn').addEventListener('click', () => {
+        const currentTheme = document.documentElement.getAttribute('data-bs-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        toggleTheme(newTheme);
+    });
+    const savedTheme = localStorage.getItem('theme') || 'dark'; 
+    toggleTheme(savedTheme);
+</script>
+</body>
+</html>

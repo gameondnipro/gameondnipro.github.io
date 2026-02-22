@@ -251,51 +251,63 @@ def global_search():
     
     if len(q) < 2:
         return redirect(request.referrer or '/')
-    search_param = f'%{q.lower()}%'
+    search_param = f'%{q}%'
+    print(f"\n--- DEBUG SEARCH ---")
+    print(f"Query: {q}")
     
-    # 1. Сервис 
+    # 1. СЕРВИС (records)
     service_sql = """
-        SELECT id, client_name as title, 'Сервис' as category, 
+        SELECT id, client_name as title, 'Сервіс' as category, 
                status || ' | ' || claimed_problem as info, 
                '/service/record/' || id as link 
         FROM records 
-        WHERE LOWER(client_name) LIKE ? 
-           OR client_phone LIKE ? 
-           OR LOWER(client_telegram) LIKE ? 
-           OR LOWER(warranty_ticket_number) LIKE ? 
-           OR LOWER(ttn_number) LIKE ? 
+        WHERE client_name LIKE ? COLLATE NOCASE
+           OR client_phone LIKE ? COLLATE NOCASE
+           OR client_telegram LIKE ? COLLATE NOCASE
+           OR warranty_ticket_number LIKE ? COLLATE NOCASE
+           OR ttn_number LIKE ? COLLATE NOCASE
            OR id = CAST(? AS INTEGER)
     """
     service_res = db_query(service_sql, (search_param, search_param, search_param, search_param, search_param, q))
+    print(f"Service results: {len(service_res)}")
 
-    # 2. Корпуса 
+    # 2. КОРПУСА (pc_cases)
     cases_sql = """
-        SELECT id, name as title, 'Корпуса' as category, 
+        SELECT id, name as title, 'Корпуси' as category, 
                price || ' грн | ' || color as info, '/cases' as link 
         FROM pc_cases 
-        WHERE LOWER(name) LIKE ? OR LOWER(color) LIKE ?
+        WHERE name LIKE ? COLLATE NOCASE 
+           OR color LIKE ? COLLATE NOCASE
     """
     cases_res = db_query(cases_sql, (search_param, search_param))
+    print(f"Cases results: {len(cases_res)}")
 
-    # 3. ТТН
+    # 3. ТТН (ttn)
     ttn_sql = """
         SELECT id, number as title, 'НП ТТН' as category, 
                client_name || ' | ' || amount || ' грн' as info, '/ttn' as link 
         FROM ttn 
-        WHERE number LIKE ? OR LOWER(client_name) LIKE ? OR LOWER(note) LIKE ?
+        WHERE number LIKE ? COLLATE NOCASE 
+           OR client_name LIKE ? COLLATE NOCASE 
+           OR note LIKE ? COLLATE NOCASE
     """
     ttn_res = db_query(ttn_sql, (search_param, search_param, search_param))
+    print(f"TTN results: {len(ttn_res)}")
 
-    # 4. Задачи
+    # 4. ЗАДАЧИ (tasks)
     tasks_sql = """
         SELECT id, title, 'Завдання' as category, 
                status || ' | Пріоритет: ' || priority as info, '/tasks' as link 
         FROM tasks 
-        WHERE LOWER(title) LIKE ? OR LOWER(description) LIKE ?
+        WHERE title LIKE ? COLLATE NOCASE 
+           OR description LIKE ? COLLATE NOCASE
     """
     tasks_res = db_query(tasks_sql, (search_param, search_param))
+    print(f"Tasks results: {len(tasks_res)}")
+    print(f"--- END DEBUG ---\n")
 
     results = service_res + cases_res + ttn_res + tasks_res
+    
     return render_template('search_results.html', results=results, query=q)
 @app.route('/installment')
 def installment_calc():

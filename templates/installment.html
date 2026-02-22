@@ -26,6 +26,68 @@
         -webkit-background-clip: initial;
         -webkit-text-fill-color: initial;
     }
+    .html2canvas-container .calc-card {
+        margin: 0 !important;
+        padding: 1.5rem !important; 
+        border: none !important;
+        box-shadow: none !important;
+        border-radius: 20px !important; 
+        width: 100% !important;
+    }
+
+    .html2canvas-container [data-html2canvas-ignore] {
+        display: none !important;
+    }
+
+    .html2canvas-container .result-main .row {
+        display: flex !important;
+        justify-content: center !important;
+        margin: 0 !important;
+    }
+
+
+    .bank-btn.active {
+        border-color: transparent !important;
+        color: white !important;
+    }
+
+    .bank-btn.active.bg-monobank {
+        background-color: #ffffff !important; 
+        color: #000000 !important;         
+    }
+
+    .bank-btn.active.bg-privat {
+        background-color: #67a421 !important; 
+    }
+
+    .bank-btn.active.bg-pumb {
+        background-color: #dc3545 !important; 
+    }
+    .is-capturing.calc-card {
+        border: 1px solid #4a4a4a !important;
+    }
+    .is-capturing .bank-btn {
+        background-color: transparent !important;
+        border: 1px solid #4a4a4a !important;
+        color: #6c757d !important;
+        opacity: 0.8;
+    }
+
+    .is-capturing .bank-btn.active.bg-monobank {
+        background-color: #ffffff !important;
+        color: #000 !important;
+        opacity: 1;
+    }
+    .is-capturing .bank-btn.active.bg-privat {
+        background-color: #67a421 !important;
+        color: #fff !important;
+        opacity: 1;
+    }
+    .is-capturing .bank-btn.active.bg-pumb {
+        background-color: #dc3545 !important;
+        color: #fff !important;
+        opacity: 1;
+    }
 </style>
 
 <div class="container mt-5" id="capture-area">
@@ -38,9 +100,10 @@
                         <h2 class="fw-bold mb-0">Миттєва розстрочка</h2>
                         <div id="live-time" class="small text-muted mt-1"></div>
                     </div>
-                    <button class="btn btn-outline-secondary btn-sm align-self-start" data-bs-toggle="modal" data-bs-target="#ratesModal">
-                        <i class="bi bi-sliders"></i> Ставки
-                    </button>
+                        <button class="btn btn-outline-secondary btn-sm align-self-start" 
+                            data-bs-toggle="modal" data-bs-target="#ratesModal" 
+                            data-html2canvas-ignore> <i class="bi bi-sliders"></i> Ставки
+                        </button>
                 </div>
 
                 <div class="mb-4 text-center">
@@ -68,29 +131,30 @@
                     </div>
                 </div>
 
-                <div class="result-main p-4 text-center mb-4">
-                    <div class="row mb-3">
-                        <div class="col-4">
-                            <small class="text-white-50 d-block">Щомісячно</small>
-                            <h4 id="monthly-payment" class="fw-bold mb-0 text-info">0 ₴</h4>
-                        </div>
-                        <div class="col-4 border-start border-end border-secondary border-opacity-50">
-                            <small class="text-white-50 d-block">Переплата</small>
-                            <h4 id="overpayment" class="fw-bold mb-0 text-warning">0 ₴</h4>
-                        </div>
-                        <div class="col-4">
-                            <small class="text-white-50 d-block">Ставка</small>
-                            <h4 id="current-rate-display" class="fw-bold mb-0">0%</h4>
-                        </div>
+            <div class="result-main p-4 text-center mb-4">
+                <div class="row mb-3 justify-content-center align-items-center"> 
+                    
+                    <div class="col-6 col-md-4"> 
+                        <small class="text-white-50 d-block">Щомісячно</small>
+                        <h4 id="monthly-payment" class="fw-bold mb-0 text-info">0 ₴</h4>
                     </div>
                     
-                    <div class="pt-3 border-top border-secondary border-opacity-25">
-                        <small class="text-white-50">ФІНАЛЬНА СУМА ДО СПЛАТИ</small>
-                        <div id="final-total" class="total-highlight fw-black">0 ₴</div>
+                    <div class="col-md-4 border-start border-end border-secondary border-opacity-50" data-html2canvas-ignore>
+                        <small class="text-white-50 d-block">Переплата</small>
+                        <h4 id="overpayment" class="fw-bold mb-0 text-warning">0 ₴</h4>
+                    </div>
+
+                    <div class="col-6 col-md-4"> 
+                        <small class="text-white-50 d-block">Ставка</small>
+                        <h4 id="current-rate-display" class="fw-bold mb-0">0%</h4>
                     </div>
                 </div>
-
-                <div class="d-grid gap-2">
+                
+                <div class="pt-3 border-top border-secondary border-opacity-25">
+                    <small class="text-white-50">ФІНАЛЬНА СУМА ДО СПЛАТИ</small>
+                    <div id="final-total" class="total-highlight fw-black">0 ₴</div>
+                </div>
+                <div class="d-grid gap-2" data-html2canvas-ignore> 
                     <button class="btn btn-warning btn-lg fw-bold py-3 shadow" onclick="copyCalculator()">
                         <i class="bi bi-camera-fill me-2"></i> Скорировать
                     </button>
@@ -148,6 +212,7 @@ let selectedBank = Object.keys(allRates)[0];
 function selectBank(name) {
     if (!allRates[name]) return;
     selectedBank = name;
+    
     const select = document.getElementById('months-select');
     select.innerHTML = '';
     
@@ -163,11 +228,28 @@ function selectBank(name) {
         select.appendChild(opt);
     });
 
+
     document.querySelectorAll('.bank-btn').forEach(b => {
+        const bankName = b.innerText.trim().toLowerCase();
         const isSelected = b.innerText.trim() === name;
-        b.classList.toggle('active', isSelected);
-        b.classList.toggle('btn-primary', isSelected);
+
+        b.classList.remove('active', 'btn-primary', 'bg-monobank', 'bg-privat', 'bg-pumb');
+        
+        if (isSelected) {
+            b.classList.add('active');
+            
+            if (bankName.includes('mono')) {
+                b.classList.add('bg-monobank');
+            } else if (bankName.includes('приват')) {
+                b.classList.add('bg-privat');
+            } else if (bankName.includes('пумб')) {
+                b.classList.add('bg-pumb');
+            } else {
+                b.classList.add('btn-primary'); 
+            }
+        }
     });
+    
     calculate();
 }
 
@@ -193,43 +275,48 @@ function calculate() {
 
 
 async function copyCalculator() {
-    const area = document.getElementById('capture-area');
+const area = document.querySelector('.calc-card'); 
     
-
     const btn = document.querySelector('button[onclick="copyCalculator()"]');
     const originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Створюю фото...';
-
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Копируем...';
+    area.classList.add('is-capturing');
     try {
         const canvas = await html2canvas(area, {
             backgroundColor: '#121212', 
-            scale: 2,                  
-            useCORS: true
+            scale: 2,                   
+            useCORS: true,
+            logging: false,
+            x: 0,
+            y: 0,
+            scrollX: 0,
+            scrollY: -window.scrollY 
         });
+
+        area.classList.remove('is-capturing');
 
         canvas.toBlob(async (blob) => {
             try {
                 const item = new ClipboardItem({ "image/png": blob });
                 await navigator.clipboard.write([item]);
-                alert("✅ Фото розрахунку в буфері! Натискай Ctrl+V у Telegram.");
+                alert("✅ Скопировал в буфер.");
             } catch (err) {
-                
                 const imgURL = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.href = imgURL;
                 link.download = `calc_${selectedBank}.png`;
                 link.click();
-                alert("📎 Браузер обмежив пряме копіювання. Фото завантажено на комп'ютер!");
+                alert("📎 Скачиваю фото");
             }
         });
     } catch (error) {
-        console.error("Помилка скріншоту:", error);
-        alert("Не вдалося створити фото.");
+        console.error("Ошибка:", error);
+        area.classList.remove('is-capturing'); 
+        alert("Ошибка.");
     } finally {
         btn.innerHTML = originalText;
     }
 }
-
 
 function updateTime() {
     const now = new Date();
@@ -240,6 +327,23 @@ function updateTime() {
     const timeElem = document.getElementById('live-time');
     if (timeElem) timeElem.innerText = timeStr;
 }
+
+function saveToLocal() {
+    const data = {
+        amount: document.getElementById('total-amount').value,
+        bank: selectedBank
+    };
+    localStorage.setItem('calc_data', JSON.stringify(data));
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const saved = localStorage.getItem('calc_data');
+    if (saved) {
+        const { amount, bank } = JSON.parse(saved);
+        document.getElementById('total-amount').value = amount;
+        selectBank(bank);
+    }
+});
 
 document.addEventListener('DOMContentLoaded', () => {
     if (selectedBank) selectBank(selectedBank);
