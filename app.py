@@ -141,7 +141,9 @@ def delete_urgent_order(order_id):
     db_execute("DELETE FROM urgent_orders WHERE id = ?", (order_id,))
     return redirect(url_for('urgent_orders'))
 
-
+@app.route('/shelves')
+def shelves_control():
+    return render_template('shelf_control.html')
 
 # --- РАЗДЕЛ: ТТН ---
 @app.route('/ttn')
