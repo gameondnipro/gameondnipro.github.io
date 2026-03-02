@@ -1008,6 +1008,6 @@ if __name__ == '__main__':
         port=8080, 
         debug=False, 
         threaded=True,  
-        ssl_context='adhoc'
+        #ssl_context='adhoc'
     )
     # use_reloader=False

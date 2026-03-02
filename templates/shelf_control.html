@@ -1,34 +1,60 @@
 {% extends "_base.html" %}
-{% block title %}Управление ARGB 140FPS{% endblock %}
+{% block title %}Управление ARGB — Мульти-стеллаж{% endblock %}
 {% block content %}
 <style>
-    .rack-wrapper { perspective: 1000px; padding: 40px; min-height: 400px; }
+    body { background-color: #0b0b0b; color: #e0e0e0; overflow-x: hidden; }
+    
+    .rack-selector {
+        background: #151515;
+        border-right: 1px solid #282828;
+        min-height: auto;
+        padding: 20px;
+    }
+    @media (min-width: 768px) {
+        .rack-selector { min-height: calc(100vh - 56px); }
+    }
+
+    .rack-item {
+        padding: 12px 15px;
+        margin-bottom: 10px;
+        border-radius: 8px;
+        background: #1f1f1f;
+        cursor: pointer;
+        border: 1px solid transparent;
+        transition: all 0.2s;
+    }
+    .rack-item.active { border-color: #ffc107; background: #2a2a2a; }
+    
+
+    .rack-wrapper { 
+        padding: 20px; 
+        width: 100%;
+        max-width: 450px; 
+        margin: 0 auto;
+    }
     .rack-container {
         display: flex;
         flex-direction: column-reverse; 
-        gap: 55px;
+        gap: clamp(30px, 5vh, 55px);
         background: #121212;
-        padding: 40px 20px;
+        padding: 40px 25px;
         border-radius: 20px;
         border: 1px solid #333;
         box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-        width: 320px;
-        margin: 0 auto;
         position: relative;
     }
+    
     .shelf {
-        width: 100%; height: 10px;
+        width: 100%; height: 12px;
         background: #222;
         border-radius: 10px;
         cursor: pointer;
-        transition: outline 0.3s ease;
         position: relative;
         outline: 2px solid transparent;
         outline-offset: 4px;
     }
     .shelf.selected { outline-color: #ffc107; }
     .shelf.outline-hidden { outline-color: transparent !important; }
-    .rack-container:hover .shelf.selected { outline-color: #ffc107 !important; }
     
     .shelf-light {
         position: absolute;
@@ -39,8 +65,15 @@
         transition: opacity 0.3s;
     }
     .shelf.active-light .shelf-light { opacity: 1; }
-    
-    .settings-btn { position: absolute; top: 20px; right: 20px; z-index: 100; }
+
+    .control-card {
+        background: #181818 !important;
+        border: 1px solid #333 !important;
+        border-radius: 15px !important;
+        position: sticky;
+        top: 20px;
+    }
+
     #selection-lasso {
         position: fixed; border: 1px dashed #ffc107;
         background: rgba(255, 193, 7, 0.1);
@@ -50,46 +83,84 @@
 
 <div id="selection-lasso"></div>
 
-<div class="container mt-4 position-relative">
-    <button class="btn btn-dark settings-btn" data-bs-toggle="modal" data-bs-target="#settingsModal">
-        <i class="bi bi-gear-fill"></i> Настройки
-    </button>
-
-    <div class="row justify-content-center">
-        <div class="col-lg-5 text-center">
-            <h2 class="fw-bold text-white mb-2">Shelf Control</h2>
-            <p id="connection-status" class="small text-danger mb-4">● Контроллер не настроен</p>
-            
-            <div class="rack-wrapper">
-                <div class="rack-container" id="rack"></div>
-            </div>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12 col-md-3 col-xl-2 rack-selector">
+            <h5 class="text-warning mb-4 fw-bold d-flex align-items-center">
+                <i class="bi bi-cpu me-2"></i> УСТРОЙСТВА
+            </h5>
+            <div id="racks-list" class="row row-cols-1 row-cols-sm-2 row-cols-md-1">
+                </div>
+            <button class="btn btn-outline-warning w-100 mt-3" onclick="openAddModal()">
+                <i class="bi bi-plus-circle me-2"></i>Добавить
+            </button>
         </div>
 
-        <div class="col-lg-4">
-            <div class="card bg-dark text-white border-secondary p-4 mt-5 shadow">
-                <h5 class="mb-4 text-warning"><i class="bi bi-sliders"></i> Управление</h5>
-                <div class="mb-3">
-                    <label class="small text-muted">Цвет</label>
-                    <input type="color" id="colorPicker" class="form-control form-control-color w-100 bg-transparent border-secondary" value="#00f2ff" oninput="applyColor(this.value)">
+        <div class="col-12 col-md-9 col-xl-10 p-3 p-lg-5">
+            <div class="row g-4 justify-content-center">
+                
+                <div class="col-12 col-lg-7 col-xl-6 text-center">
+                    <h2 id="current-rack-name" class="fw-bold text-white mb-1">Выберите устройство</h2>
+                    <p id="connection-status" class="small text-muted mb-4">Ожидание выбора...</p>
+                    
+                    <div class="rack-wrapper">
+                        <div class="rack-container" id="rack">
+                            </div>
+                    </div>
                 </div>
-                <div class="mb-3">
-                    <label class="small text-muted">Эффект</label>
-                    <select id="effectSelect" class="form-select bg-black text-white border-secondary" onchange="applyEffect(this.value)">
-                        <option value="0">Статичный (Solid)</option>
-                        <option value="9">Радуга (Rainbow)</option>
-                        <option value="20">Огонь (Fire 2012)</option>
-                        <option value="44">Метеор (Meteor)</option>
-                    </select>
+
+                <div class="col-12 col-md-8 col-lg-5 col-xl-4" id="main-controls" style="display:none;">
+                    <div class="card control-card text-white p-4 shadow-lg">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h5 class="text-warning m-0 fw-bold">Управление</h5>
+                            <button class="btn btn-sm btn-outline-secondary border-0" onclick="openEditModal()">
+                                <i class="bi bi-gear-fill"></i> Настроить IP
+                            </button>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label small text-muted text-uppercase fw-bold">Цвет</label>
+                            <input type="color" id="colorPicker" class="form-control form-control-color w-100 bg-transparent border-secondary" value="#00f2ff" oninput="applyColor(this.value)">
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label small text-muted text-uppercase fw-bold">Эффект</label>
+                            <select id="effectSelect" class="form-select bg-black text-white border-secondary shadow-none" onchange="applyEffect(this.value)">
+                                <option value="0">Статичный (Solid)</option>
+                                <option value="9">Радуга (Rainbow)</option>
+                                <option value="20">Огонь (Fire 2012)</option>
+                                <option value="44">Метеор (Meteor)</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between">
+                                <label class="form-label small text-muted text-uppercase fw-bold">Яркость</label>
+                                <span id="bri-val" class="small text-warning">255</span>
+                            </div>
+                            <input type="range" class="form-range" min="0" max="255" id="brightnessRange" value="255" 
+                                   oninput="document.getElementById('bri-val').innerText = this.value"
+                                   onchange="applyBrightness(this.value)">
+                        </div>
+
+                        <hr class="border-secondary my-4">
+
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <button class="btn btn-warning w-100 fw-bold py-2 shadow-sm" onclick="sendPower(true)">ВКЛ</button>
+                            </div>
+                            <div class="col-6">
+                                <button class="btn btn-outline-light w-100 py-2" onclick="sendPower(false)">ВЫКЛ</button>
+                            </div>
+                            <div class="col-12 mt-3">
+                                <button class="btn btn-link text-danger text-decoration-none btn-sm w-100" onclick="clearSelection()">
+                                    <i class="bi bi-x-circle me-1"></i> Сбросить выбор полок
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="mb-3">
-                    <label class="small text-muted">Яркость</label>
-                    <input type="range" class="form-range" min="0" max="255" id="brightnessRange" value="255" onchange="applyBrightness(this.value)">
-                </div>
-                <div class="d-grid gap-2 mt-4">
-                    <button class="btn btn-warning fw-bold" onclick="sendPower(true)">Включить всё</button>
-                    <button class="btn btn-outline-secondary" onclick="sendPower(false)">Выключить всё</button>
-                    <button class="btn btn-outline-danger btn-sm mt-2" onclick="clearSelection()">Сбросить выбор</button>
-                </div>
+
             </div>
         </div>
     </div>
@@ -99,149 +170,58 @@
     <div class="modal-dialog">
         <div class="modal-content bg-dark text-white border-secondary">
             <div class="modal-header border-secondary">
-                <h5 class="modal-title">Настройки системы</h5>
+                <h5 class="modal-title" id="modalTitle">Настройки стеллажа</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
+                <input type="hidden" id="edit-index">
+                <div class="mb-3">
+                    <label class="form-label small text-muted">Название</label>
+                    <input type="text" id="m-name" class="form-control bg-black text-white border-secondary" placeholder="Напр: Стеллаж 1">
+                </div>
                 <div class="mb-3">
                     <label class="form-label small text-muted">IP адрес WLED</label>
-                    <input type="text" id="wled_ip" class="form-control bg-black text-white border-secondary" placeholder="192.168.x.x">
+                    <input type="text" id="m-ip" class="form-control bg-black text-white border-secondary" placeholder="192.168.x.x">
                 </div>
                 <div class="row">
                     <div class="col-6">
                         <label class="form-label small text-muted">Кол-во полок</label>
-                        <input type="number" id="shelf_count" class="form-control bg-black text-white border-secondary" value="5">
+                        <input type="number" id="m-shelves" class="form-control bg-black text-white border-secondary" value="5">
                     </div>
                     <div class="col-6">
                         <label class="form-label small text-muted">LED на полку</label>
-                        <input type="number" id="leds_per_shelf" class="form-control bg-black text-white border-secondary" value="90">
+                        <input type="number" id="m-leds" class="form-control bg-black text-white border-secondary" value="90">
                     </div>
                 </div>
             </div>
-            <div class="modal-footer border-secondary">
-                <button type="button" class="btn btn-primary w-100" onclick="saveSettings()">Применить</button>
+            <div class="modal-footer border-secondary justify-content-between">
+                <button type="button" class="btn btn-danger" id="deleteBtn" onclick="deleteRack()">Удалить</button>
+                <button type="button" class="btn btn-primary" onclick="saveRack()">Применить</button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-let config = { ip: '', leds: 90, shelves: 5 };
+let racks = JSON.parse(localStorage.getItem('wled_racks') || '[]');
+let currentActiveIndex = -1;
 let selectedShelves = new Set();
 let outlineTimeout;
+let settingsModal;
 
 document.addEventListener('DOMContentLoaded', () => {
-    const saved = localStorage.getItem('wled_config');
-    if (saved) {
-        config = JSON.parse(saved);
-        document.getElementById('wled_ip').value = config.ip;
-        document.getElementById('leds_per_shelf').value = config.leds;
-        document.getElementById('shelf_count').value = config.shelves || 5;
+    settingsModal = new bootstrap.Modal(document.getElementById('settingsModal'));
+    refreshList();
+    if (racks.length > 0) {
+        selectRack(0);
     }
-    renderShelves();
-    updateStatus();
 });
 
-function renderShelves() {
-    const container = document.getElementById('rack');
-    container.innerHTML = '';
-    const count = parseInt(config.shelves) || 5;
-    
-    for (let i = 0; i < count; i++) {
-        const shelf = document.createElement('div');
-        shelf.className = 'shelf';
-        shelf.dataset.id = i;
-        shelf.onclick = () => toggleShelf(i);
-        shelf.innerHTML = `<div class="shelf-light" id="light-${i}"></div>`;
-        container.appendChild(shelf);
-    }
-    selectedShelves.clear();
-}
-
-function saveSettings() {
-    config.ip = document.getElementById('wled_ip').value.trim();
-    config.leds = document.getElementById('leds_per_shelf').value;
-    config.shelves = document.getElementById('shelf_count').value;
-    
-    localStorage.setItem('wled_config', JSON.stringify(config));
-    bootstrap.Modal.getInstance(document.getElementById('settingsModal')).hide();
-    
-    renderShelves();
-    updateStatus();
-}
-
-function updateStatus() {
-    const status = document.getElementById('connection-status');
-    if (config.ip) {
-        status.innerText = `● Контроллер: ${config.ip}`;
-        status.className = "small text-success mb-4";
-    }
-}
-
-
 async function sendRequest(body) {
-    if (!config.ip) return;
-    const url = `http://${config.ip}/json/state?json=${encodeURIComponent(JSON.stringify(body))}`;
-    fetch(url, { mode: 'no-cors', cache: 'no-store' }).catch(() => {});
-}
-
-
-function toggleShelf(id) {
-    const shelf = document.querySelector(`.shelf[data-id="${id}"]`);
-    if (!shelf) return;
-    if (selectedShelves.has(id)) {
-        selectedShelves.delete(id);
-        shelf.classList.remove('selected', 'outline-hidden');
-    } else {
-        selectedShelves.add(id);
-        shelf.classList.add('selected');
-        shelf.classList.remove('outline-hidden');
-    }
-    resetOutlineTimer();
-}
-
-function resetOutlineTimer() {
-    clearTimeout(outlineTimeout);
-    document.querySelectorAll('.shelf.selected').forEach(s => s.classList.remove('outline-hidden'));
-    outlineTimeout = setTimeout(() => {
-        document.querySelectorAll('.shelf.selected').forEach(s => s.classList.add('outline-hidden'));
-    }, 3000);
-}
-
-function updateEffectParams() {
-    const effectId = document.getElementById('effectSelect').value;
-    applyEffect(effectId);
-}
-
-async function applyEffect(effectId) {
-    if (selectedShelves.size === 0 || !config.ip) return;
-    const speed = document.getElementById('effectSpeed').value;
-    const segments = Array.from(selectedShelves).map(id => ({
-        "id": id, "fx": parseInt(effectId), "sx": parseInt(speed), "on": true
-    }));
-    sendRequest({ "seg": segments });
-}
-
-async function applyColor(hex) {
-    if (selectedShelves.size === 0 || !config.ip) return;
-    const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
-    selectedShelves.forEach(id => {
-        const light = document.getElementById(`light-${id}`);
-        if (light) {
-            light.parentElement.classList.add('active-light');
-            light.style.background = hex;
-            light.style.boxShadow = `0 0 30px ${hex}`;
-        }
-    });
-    const segments = Array.from(selectedShelves).map(id => ({ "id": id, "col": [[r, g, b]], "fx": 0, "on": true }));
-    sendRequest({ "seg": segments });
-}
-
-async function applyBrightness(val) { sendRequest({ "bri": parseInt(val) }); }
-async function sendPower(state) { sendRequest({ "on": state, "bri": 255 }); }
-async function sendRequest(body) {
-    if (!config.ip) return;
-    const url = `http://${config.ip}/json/state`;
+    const currentIP = racks[currentActiveIndex]?.ip;
+    if (!currentIP) return;
+    
+    const url = `http://${currentIP}/json/state`;
     try {
         await fetch(url, {
             method: 'POST',
@@ -254,58 +234,244 @@ async function sendRequest(body) {
     }
 }
 
+function refreshList() {
+    const list = document.getElementById('racks-list');
+    list.innerHTML = racks.map((r, i) => `
+        <div class="rack-item ${i === currentActiveIndex ? 'active' : ''}" onclick="selectRack(${i})">
+            <div class="fw-bold">${r.name}</div>
+            <div class="small text-muted">${r.ip}</div>
+        </div>
+    `).join('');
+}
+
+function selectRack(index) {
+    currentActiveIndex = index;
+    const r = racks[index];
+    if (!r) return;
+
+    document.getElementById('current-rack-name').innerText = r.name;
+    document.getElementById('connection-status').innerText = `● Контроллер: ${r.ip}`;
+    document.getElementById('connection-status').className = "small text-success mb-4";
+    document.getElementById('main-controls').style.display = 'block';
+
+    renderShelves(r.shelves);
+    refreshList();
+}
+
+function renderShelves(count) {
+    const container = document.getElementById('rack');
+    container.innerHTML = '';
+    for (let i = 0; i < count; i++) {
+        const shelf = document.createElement('div');
+        shelf.className = 'shelf';
+        shelf.dataset.id = i;
+        shelf.onclick = () => toggleShelf(i);
+        shelf.innerHTML = `<div class="shelf-light" id="light-${i}"></div>`;
+        container.appendChild(shelf);
+    }
+    selectedShelves.clear();
+}
+
+function openAddModal() {
+    document.getElementById('edit-index').value = "-1";
+    document.getElementById('m-name').value = "Новый стеллаж";
+    document.getElementById('m-ip').value = "";
+    document.getElementById('deleteBtn').style.display = 'none';
+    settingsModal.show();
+}
+
+function openEditModal() {
+    const r = racks[currentActiveIndex];
+    document.getElementById('edit-index').value = currentActiveIndex;
+    document.getElementById('m-name').value = r.name;
+    document.getElementById('m-ip').value = r.ip;
+    document.getElementById('m-shelves').value = r.shelves;
+    document.getElementById('m-leds').value = r.leds;
+    document.getElementById('deleteBtn').style.display = 'block';
+    settingsModal.show();
+}
+
+function saveRack() {
+    const idx = parseInt(document.getElementById('edit-index').value);
+    const data = {
+        name: document.getElementById('m-name').value || "Стеллаж",
+        ip: document.getElementById('m-ip').value.trim(),
+        shelves: parseInt(document.getElementById('m-shelves').value) || 5,
+        leds: parseInt(document.getElementById('m-leds').value) || 90
+    };
+
+    if (idx === -1) racks.push(data);
+    else racks[idx] = data;
+
+    localStorage.setItem('wled_racks', JSON.stringify(racks));
+    settingsModal.hide();
+    refreshList();
+    selectRack(idx === -1 ? racks.length - 1 : idx);
+}
+
+function deleteRack() {
+    const idx = parseInt(document.getElementById('edit-index').value);
+    if(confirm("Удалить этот стеллаж?")) {
+        racks.splice(idx, 1);
+        localStorage.setItem('wled_racks', JSON.stringify(racks));
+        location.reload();
+    }
+}
+
+function selectShelfInternal(id, element) {
+    selectedShelves.add(id);
+    element.classList.add('selected');
+    element.classList.remove('outline-hidden');
+}
+
+function unselectShelfInternal(id, element) {
+    selectedShelves.delete(id);
+    element.classList.remove('selected');
+}
+function toggleShelf(id) {
+    const shelf = document.querySelector(`.shelf[data-id="${id}"]`);
+    if (!shelf) return;
+
+    const e = window.event;
+    if (e && (e.ctrlKey || e.shiftKey)) {
+        if (selectedShelves.has(id)) {
+            unselectShelfInternal(id, shelf);
+        } else {
+            selectShelfInternal(id, shelf);
+        }
+    } else {
+        const alreadySelected = selectedShelves.has(id) && selectedShelves.size === 1;
+        clearSelection();
+        if (!alreadySelected) {
+            selectShelfInternal(id, shelf);
+        }
+    }
+    resetOutlineTimer();
+}
+
+function resetOutlineTimer() {
+    clearTimeout(outlineTimeout);
+    document.querySelectorAll('.shelf.selected').forEach(s => s.classList.remove('outline-hidden'));
+    outlineTimeout = setTimeout(() => {
+        document.querySelectorAll('.shelf.selected').forEach(s => s.classList.add('outline-hidden'));
+    }, 3000);
+}
+
+async function applyColor(hex) {
+    if (selectedShelves.size === 0) return;
+    const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+    
+    selectedShelves.forEach(id => {
+        const light = document.getElementById(`light-${id}`);
+        if (light) {
+            light.parentElement.classList.add('active-light');
+            light.style.background = hex;
+            light.style.boxShadow = `0 0 30px ${hex}`;
+        }
+    });
+
+    const segments = Array.from(selectedShelves).map(id => ({ "id": id, "col": [[r, g, b]], "fx": 0, "on": true }));
+    sendRequest({ "seg": segments });
+}
+
+async function applyEffect(effectId) {
+    if (selectedShelves.size === 0) return;
+    const segments = Array.from(selectedShelves).map(id => ({ "id": id, "fx": parseInt(effectId), "on": true }));
+    sendRequest({ "seg": segments });
+}
+
+async function applyBrightness(val) { sendRequest({ "bri": parseInt(val) }); }
+async function sendPower(state) { sendRequest({ "on": state, "bri": 255 }); }
+
+function clearSelection() {
+    selectedShelves.clear();
+    document.querySelectorAll('.shelf').forEach(s => {
+        s.classList.remove('selected', 'outline-hidden');
+    });
+}
+
 
 let isSelecting = false;
 let startX, startY;
+let selectionMoved = false;
 const lasso = document.getElementById('selection-lasso');
 
 document.addEventListener('mousedown', (e) => {
-    if (!e.target.closest('.rack-wrapper')) return;
-    isSelecting = true;
-    startX = e.pageX; startY = e.pageY;
-    lasso.style.display = 'block';
+    if (e.target.closest('.modal') || e.target.closest('.btn') || e.target.closest('.form-control') || e.target.closest('.form-range')) return;
+
+    const area = e.target.closest('.rack-wrapper');
+    const isShelf = e.target.closest('.shelf');
+
+    if (!area && !isShelf) {
+        clearSelection();
+        return;
+    }
+
+    if (area && !isShelf) {
+        isSelecting = true;
+        selectionMoved = false;
+        startX = e.pageX;
+        startY = e.pageY;
+
+        lasso.style.display = 'block';
+        lasso.style.left = startX + 'px';
+        lasso.style.top = startY + 'px';
+        lasso.style.width = '0px';
+        lasso.style.height = '0px';
+
+        if (!e.shiftKey && !e.ctrlKey) {
+            clearSelection();
+        }
+    }
 });
 
 document.addEventListener('mousemove', (e) => {
     if (!isSelecting) return;
-    const currentX = e.pageX, currentY = e.pageY;
-    const left = Math.min(startX, currentX), top = Math.min(startY, currentY);
-    const width = Math.abs(startX - currentX), height = Math.abs(startY - currentY);
-    lasso.style.left = left + 'px'; lasso.style.top = top + 'px';
-    lasso.style.width = width + 'px'; lasso.style.height = height + 'px';
+    
+    selectionMoved = true;
+    const curX = e.pageX;
+    const curY = e.pageY;
+    const left = Math.min(startX, curX);
+    const top = Math.min(startY, curY);
+    const width = Math.abs(startX - curX);
+    const height = Math.abs(startY - curY);
 
+    lasso.style.left = left + 'px';
+    lasso.style.top = top + 'px';
+    lasso.style.width = width + 'px';
+    lasso.style.height = height + 'px';
+
+    const lassoRect = lasso.getBoundingClientRect();
+    
     document.querySelectorAll('.shelf').forEach(shelf => {
-        const r = shelf.getBoundingClientRect(), l = lasso.getBoundingClientRect();
-        if (!(r.right < l.left || r.left > l.right || r.bottom < l.top || r.top > l.bottom)) {
-            const id = parseInt(shelf.dataset.id);
-            if (!selectedShelves.has(id)) {
-                selectedShelves.add(id);
-                shelf.classList.add('selected');
-                shelf.classList.remove('outline-hidden');
-            }
+        const shelfRect = shelf.getBoundingClientRect();
+        const isIntersecting = !(
+            shelfRect.right < lassoRect.left ||
+            shelfRect.left > lassoRect.right ||
+            shelfRect.bottom < lassoRect.top ||
+            shelfRect.top > lassoRect.bottom
+        );
+
+        const id = parseInt(shelf.dataset.id);
+        if (isIntersecting) {
+            selectShelfInternal(id, shelf);
+        } else if (!e.shiftKey && !e.ctrlKey && selectionMoved) {
+            unselectShelfInternal(id, shelf);
         }
     });
 });
 
-document.addEventListener('mouseup', () => { 
-    isSelecting = false; 
-    lasso.style.display = 'none'; 
-    resetOutlineTimer(); 
-});
+document.addEventListener('mouseup', (e) => {
+    if (!isSelecting) {
+        if (e.target.closest('.rack-wrapper') && !e.target.closest('.shelf') && !selectionMoved) {
+            clearSelection();
+        }
+        return;
+    }
 
-function clearSelection() {
-    selectedShelves.clear();
-    document.querySelectorAll('.shelf').forEach(s => s.classList.remove('selected', 'active-light'));
-}
-async function testConnection() {
-    const ip = document.getElementById('wled_ip').value.trim();
-    const res = document.getElementById('test-result');
-    res.style.display = 'block'; res.innerText = "⏳...";
-    try {
-        const response = await fetch(`http://${ip}/json/info`, { method: 'GET' });
-        if (response.ok) res.innerText = "✅";
-        else res.innerText = "❌";
-    } catch (e) { res.innerText = "❌ Нет связи"; }
-}
+    isSelecting = false;
+    lasso.style.display = 'none';
+    resetOutlineTimer();
+});
 </script>
 {% endblock %}
